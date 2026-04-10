@@ -4,6 +4,8 @@
     <meta charset="UTF-8" />
     <title>Battery Life Estimator</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.72/pdfmake.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.72/vfs_fonts.js"></script>
     <style>
         html {
             margin: 10px;
@@ -166,15 +168,84 @@
             height: 7px;
             border-radius: 3px;
         }
+
+        /* ── Geolocation profile styles ─────────────────── */
+        /* Profiles container: full-width flex row of profile cards */
+        #geoloc_profiles_container {
+            flex: 0 0 100%;
+            display: flex;
+            flex-flow: row wrap;
+            gap: 12px;
+            align-items: flex-start;
+        }
+        /* Each profile fieldset occupies a full row */
+        .geoloc-profile-fs { flex: 0 0 100%; }
+        .profile-summary { font-size:.75rem; color:#666; font-weight:normal; margin-left:6px; }
+        /* Techno slots within a profile: horizontal row */
+        .geoloc-techno-row {
+            display: flex;
+            flex-flow: row wrap;
+            gap: 8px;
+            align-items: flex-start;
+        }
+        /* Each techno slot: vertical card */
+        .techno-slot {
+            flex: 0 0 auto;
+            min-width: 150px;
+            border: 1px solid #cce8ec;
+            border-radius: 4px;
+            padding: 8px 10px;
+            background: #fafeff;
+        }
+        .techno-slot-header {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-bottom: 6px;
+            flex-wrap: wrap;
+        }
+        .techno-name { font-weight: bold; color: #008293; font-size:.9rem; }
+        .badge { font-size:.7rem; border-radius:3px; padding:1px 6px; font-weight:bold; white-space:nowrap; }
+        .badge-always { background:#e0f7fa; color:#00838f; border:1px solid #80deea; }
+        .badge-cond   { background:#f5f5f5; color:#888;    border:1px solid #ccc; }
+        .slot-order   { font-size:.7rem; color:#aaa; }
+        .techno-locked-section {
+            margin-top: 10px; padding: 6px 8px;
+            background: #f8f8f8; border-radius: 4px; border: 1px dashed #ddd;
+        }
+        .techno-locked-tags { display:flex; flex-wrap:wrap; gap:4px; margin-top:4px; }
+        .techno-locked-tag {
+            background:#eee; color:#bbb; border-radius:3px; padding:2px 7px; font-size:.73rem;
+        }
+
+        /* ── Geolocation statistics table ───────────────────── */
+        #geoloc_stats_section { margin-top: 12px; }
+        .geoloc-stats-profile { margin-bottom: 12px; }
+        .geoloc-stats-profile legend { color:#008293; font-weight:bold; }
+        .geoloc-stats-meta { font-size:.8rem; color:#555; margin-bottom:8px; }
+        .geoloc-stats-table {
+            width: 100%; border-collapse: collapse; font-size: .82rem;
+        }
+        .geoloc-stats-table th {
+            background:#f5f5f5; color:#555; font-weight:bold; font-size:.75rem;
+            text-align:right; padding:5px 9px; border-bottom:1px solid #e0e0e0;
+        }
+        .geoloc-stats-table th:first-child { text-align:left; }
+        .geoloc-stats-table td {
+            padding:5px 9px; border-top:1px solid #f0f0f0;
+            text-align:right; font-variant-numeric:tabular-nums;
+        }
+        .geoloc-stats-table td:first-child { text-align:left; font-weight:bold; color:#008293; }
+        .geoloc-stats-table tr:hover td { background:#f9fdfe; }
+        .geoloc-stats-table tfoot td {
+            font-size:.77rem; color:#888; border-top:1px solid #ddd;
+            padding:5px 9px; text-align:left;
+        }
     </style>
 </head>
 <body>
 
     <h1>Battery Life Estimator</h1>
-    <p>
-        The results as an output of this tool can vary from the field due to impact of environment and other ambient factors.<br/>
-        The values that should be entered should be typical average usage of the tracker and NOT worst case scenario.
-    </p>
 
     <!-- ════════════════════════════════════════════
          SECTION 1 — General Configuration
@@ -182,67 +253,86 @@
     <fieldset>
         <legend>Configuration &amp; General Settings</legend>
         <div class="flexcontainer">
-            <div class="flexitem1">
-                <label for="product">Product:</label><br />
+
+            <fieldset class="flexitem">
+                <legend>Product</legend>
+                <label for="product">Product type:</label><br />
                 <select id="product" onchange="onProductChange()">
                     <option value="industrial">Industrial Tracker</option>
                     <option value="compact">Compact Tracker</option>
                     <option value="micro">Microtracker</option>
                     <option value="smart_badge" selected>Smart Badge</option>
                     <option value="combo_tracker">Combo Tracker</option>
-                </select><br />
+                </select>
+            </fieldset>
 
-                <label for="tx_power">TX Power:</label><br />
-                <select id="tx_power">
-                    <option value="_14dBm_">14 dBm</option>
-                    <option value="_17dBm_">17 dBm</option>
-                    <option value="_19dBm_" selected>19 dBm</option>
-                </select><br />
+            <fieldset class="flexitem">
+                <legend>Device Configuration &amp; Conditions</legend>
+                <label for="config_file">Device config file (.txt / .cfg):</label><br />
+                <input type="file" id="config_file" accept=".txt,.cfg" onchange="loadConfigFile(event)" style="margin-bottom:4px;"><br />
+                <small id="config_status" style="display:block; margin-bottom:10px;"></small>
+                <hr />
+                <label for="motion_pct">In motion [%]:</label><br />
+                <input type="number" min="0" max="100" id="motion_pct" value="50" oninput="onMotionPctChange(this)"><br />
+                <label for="static_pct">Static [%]:</label><br />
+                <input type="number" min="0" max="100" id="static_pct" value="50" oninput="onStaticPctChange(this)"><br />
+                <small style="color:#666;">Estimated time split over battery lifetime. Used to weight geolocation &amp; beaconing power consumption.</small>
+            </fieldset>
 
-                <label for="sf">Spreading Factor:</label><br />
-                <select id="sf">
-                    <option value="7">SF7</option>
-                    <option value="8">SF8</option>
-                    <option value="9">SF9</option>
-                    <option value="10" selected>SF10</option>
-                    <option value="11">SF11</option>
-                    <option value="12">SF12</option>
+            <fieldset class="flexitem">
+                <legend>Battery Characteristics</legend>
+                <label for="battery_capacity_mah">Usable capacity [mAh]:</label><br />
+                <input type="number" min="1" id="battery_capacity_mah" value="1300"><br />
+                <small style="color:#666;">Enter the practical (usable) battery capacity for the selected product.</small>
+                <hr />
+                <label for="discharge_profile">Deployment environment:</label><br />
+                <select id="discharge_profile" onchange="onDischargeProfileChange()">
+                    <option value="0.8">Cold climate — Arctic / Nordic  [-20 °C to +10 °C]  (0.8 % / yr)</option>
+                    <option value="1.2">Temperate outdoor — Europe / mild  [-10 °C to +25 °C]  (1.2 % / yr)</option>
+                    <option value="2.4" selected>Mixed indoor/outdoor — Industrial default  [+10 °C to +40 °C]  (2.4 % / yr)</option>
+                    <option value="3.2">Hot outdoor — Mediterranean / semi-arid  [+25 °C to +40 °C]  (3.2 % / yr)</option>
+                    <option value="4.1">Tropical outdoor  [+40 °C to +70 °C]  (4.1 % / yr)</option>
+                    <option value="custom">Custom…</option>
                 </select><br />
-            </div>
+                <label for="annual_discharge_pct">Annual self-discharge rate [%]:</label><br />
+                <input type="number" id="annual_discharge_pct" min="0" max="100" step="0.1" value="2.4" readonly
+                       style="background:#f5f5f5;">
+                <small style="color:#666;">
+                    Based on temperature-weighted discharge model (source: wetrak lifetime Excel).
+                    Select "Custom" to enter a value manually.
+                </small>
+            </fieldset>
 
-            <div class="flexitem1">
-                <label for="nof_msg_repetition">N. of times every msg sent:</label><br />
-                <select id="nof_msg_repetition">
-                    <option value="1" selected>1</option>
-                    <option value="2">2</option>
-                    <option value="3">3</option>
-                    <option value="4">4</option>
-                </select><br />
-            </div>
         </div>
     </fieldset>
 
     <!-- ════════════════════════════════════════════
-         SECTION 2 — CPU Consumption
+         SECTION 2 — General Consumptions
     ═════════════════════════════════════════════ -->
     <fieldset>
-        <legend>CPU Consumption</legend>
+        <legend>General Consumptions</legend>
         <div class="flexcontainer">
 
             <div class="flexitem">
-                <label for="heartbeat_nof_msg_per_day">Heartbeat messages / day:</label><br />
-                <input type="number" min="0" id="heartbeat_nof_msg_per_day" value="24"><br />
+                <label for="cpu_idle_ua">CPU idle current [µA]:</label><br />
+                <input type="number" min="0" step="0.1" id="cpu_idle_ua" value="8"><br />
 
-                <label for="custom_msg_nof_msg_per_day">Custom messages / day:</label><br />
-                <input type="number" min="0" id="custom_msg_nof_msg_per_day" value="0"><br />
+                <label for="heartbeat_period_s">Heartbeat period [s] (0 = disabled):</label><br />
+                <input type="number" min="0" id="heartbeat_period_s" value="3600"><br />
 
-                <label for="custom_msg_payl_len">Custom msg payload length [bytes]:</label><br />
-                <input type="number" min="1" id="custom_msg_payl_len" value="17">
+                <label for="status_period_s">Status message period [s] (0 = disabled):</label><br />
+                <input type="number" min="0" id="status_period_s" value="3600"><br />
             </div>
 
             <div class="flexitem">
-                <label for="accelerometer_on">Accelerometer On:</label>
-                <input type="checkbox" id="accelerometer_on" checked><br />
+                <label for="monitoring_period_s">Monitoring period [s]:</label><br />
+                <input type="number" min="1" id="monitoring_period_s" value="300"><br />
+
+                <label for="monitoring_current_ma">Monitoring active current [mA]:</label><br />
+                <input type="number" min="0" step="0.1" id="monitoring_current_ma" value="5"><br />
+
+                <label for="monitoring_window_ms">Monitoring window [ms]:</label><br />
+                <input type="number" min="0" id="monitoring_window_ms" value="10"><br />
             </div>
 
         </div>
@@ -255,111 +345,75 @@
         <legend>Geolocation Technologies Consumption</legend>
         <div class="flexcontainer">
 
-            <fieldset class="flexitem">
-                <legend>GPS</legend>
-                <label for="gps_nof_msg_per_day">Num. of updates/day:</label><br />
-                <input type="number" min="0" id="gps_nof_msg_per_day" value="24"><br />
-                <label for="gps_ttff">Time to first fix [s]:</label><br />
-                <input type="number" min="0" id="gps_ttff" value="49"><br />
-                <label for="gps_conv_time">Convergence time [s]:</label><br />
-                <input type="number" min="0" id="gps_conv_time" value="90">
-            </fieldset>
+            <!-- ── Manual config: shown when no config file is loaded ──────── -->
+            <div id="geoloc_manual_config" style="display:contents;">
 
-            <fieldset class="flexitem">
-                <legend>AGPS</legend>
-                <label for="agps_nof_msg_per_day">Num. of updates/day:</label><br />
-                <input type="number" min="0" id="agps_nof_msg_per_day" value="0"><br />
-                <label for="agps_on_time">AGPS on time [s]:</label><br />
-                <input type="number" min="0" id="agps_on_time" value="8"><br />
-                <label for="agps_nof_satellites">Num. of satellites:</label><br />
-                <select id="agps_nof_satellites">
-                    <option value="1">1</option>
-                    <option value="2">2</option>
-                    <option value="3">3</option>
-                    <option value="4">4</option>
-                    <option value="5" selected>5</option>
-                </select>
-            </fieldset>
+                <fieldset class="flexitem">
+                    <legend>GPS</legend>
+                    <label for="gps_nof_msg_per_day">Num. of updates/day:</label><br />
+                    <input type="number" min="0" id="gps_nof_msg_per_day" value="24"><br />
+                    <label for="gps_ttff">Time to first fix [s]:</label><br />
+                    <input type="number" min="0" id="gps_ttff" value="49"><br />
+                    <label for="gps_conv_time">Convergence time [s]:</label><br />
+                    <input type="number" min="0" id="gps_conv_time" value="90">
+                </fieldset>
 
-            <fieldset class="flexitem">
-                <legend>WiFi Positioning</legend>
-                <label for="wifi_nof_msg_per_day">Num. of scans/day:</label><br />
-                <input type="number" min="0" id="wifi_nof_msg_per_day" value="0"><br />
-                <label for="wifi_nof_bssid">Num. of BSSID/scan:</label><br />
-                <select id="wifi_nof_bssid">
-                    <option value="1">1</option>
-                    <option value="2">2</option>
-                    <option value="3">3</option>
-                    <option value="4" selected>4</option>
-                </select>
-            </fieldset>
-
-            <fieldset class="flexitem">
-                <legend>BLE Positioning</legend>
-                <label for="ble_nof_msg_per_day">Num. of scans/day:</label><br />
-                <input type="number" min="0" id="ble_nof_msg_per_day" value="0"><br />
-                <label for="ble_nof_beaconid">Num. of beacon ID/scan:</label><br />
-                <select id="ble_nof_beaconid">
-                    <option value="1">1</option>
-                    <option value="2">2</option>
-                    <option value="3">3</option>
-                    <option value="4" selected>4</option>
-                </select><br />
-                <label for="custom_ble_operation">BLE Operation:</label><br />
-                <select id="custom_ble_operation">
-                    <option value="fast_adv">Fast advertisement (2s)</option>
-                    <option value="slow_adv">Slow advertisement (10s)</option>
-                    <option value="connected">Connected (2s)</option>
-                    <option value="slow_scan">Slow BLE scan (30s)</option>
-                    <option value="fast_scan">Fast BLE scan (8s)</option>
-                </select><br />
-                <label for="custom_ble_usage_time_per_day">BLE usage per day [h]:</label><br />
-                <input type="number" min="0" id="custom_ble_usage_time_per_day" value="0">
-            </fieldset>
-
-            <fieldset class="flexcontainer flexitem">
-                <legend>Scan Collection</legend>
-                <div class="flexitem1">
-                    <label for="scancoll_nof_msg_per_day">Num. of reports/day:</label><br />
-                    <input type="number" min="0" id="scancoll_nof_msg_per_day" value="0"><br />
-
-                    <div id="scancoll_tech_radiogroup" class="radiogroup">
-                        Applied technology:<br />
-                        &nbsp;<input type="radio" id="scancoll_tech_ble" name="scancoll_tech" value="BLE" checked
-                            onchange="document.getElementById('scancoll_idtype_radiogroup').style.display='block'">
-                        <label for="scancoll_tech_ble">BLE</label>
-                        &nbsp;<input type="radio" id="scancoll_tech_wifi" name="scancoll_tech" value="WiFi"
-                            onchange="document.getElementById('scancoll_idtype_radiogroup').style.display='none'">
-                        <label for="scancoll_tech_wifi">WiFi</label>
-                    </div>
-
-                    <div id="scancoll_idtype_radiogroup" class="radiogroup">
-                        BLE ID Type:<br />
-                        &nbsp;<input type="radio" id="scancoll_idtype_mac" name="scancoll_idtype" value="MAC" checked>
-                        <label for="scancoll_idtype_mac">MAC Addr (6 bytes)</label><br />
-                        &nbsp;<input type="radio" id="scancoll_idtype_id" name="scancoll_idtype" value="ID">
-                        <label for="scancoll_idtype_id">Beacon ID (2 bytes)</label>
-                    </div>
-                </div>
-
-                <div class="flexitem1">
-                    <label for="scancoll_max_payl_len">Max. payload len. [bytes]:</label><br />
-                    <select id="scancoll_max_payl_len">
-                        <option value="36">36 (SF12..SF10)</option>
-                        <option value="92" selected>92 (SF9..SF7)</option>
-                    </select><br />
-                    <label for="scancoll_nof_id">Num. of ID/msg:</label><br />
-                    <select id="scancoll_nof_id">
-                        <option value="1">1</option><option value="2">2</option><option value="3">3</option>
-                        <option value="4">4</option><option value="5">5</option><option value="6">6</option>
-                        <option value="7">7</option><option value="8" selected>8</option><option value="9">9</option>
-                        <option value="10">10</option><option value="11">11</option><option value="12">12</option>
-                        <option value="13">13</option><option value="14">14</option><option value="15">15</option>
-                        <option value="16">16</option><option value="17">17</option><option value="18">18</option>
-                        <option value="19">19</option><option value="20">20</option>
+                <fieldset class="flexitem">
+                    <legend>AGPS</legend>
+                    <label for="agps_nof_msg_per_day">Num. of updates/day:</label><br />
+                    <input type="number" min="0" id="agps_nof_msg_per_day" value="0"><br />
+                    <label for="agps_on_time">AGPS on time [s]:</label><br />
+                    <input type="number" min="0" id="agps_on_time" value="8"><br />
+                    <label for="agps_nof_satellites">Num. of satellites:</label><br />
+                    <select id="agps_nof_satellites">
+                        <option value="1">1</option>
+                        <option value="2">2</option>
+                        <option value="3">3</option>
+                        <option value="4">4</option>
+                        <option value="5" selected>5</option>
                     </select>
-                </div>
-            </fieldset>
+                </fieldset>
+
+                <fieldset class="flexitem">
+                    <legend>WiFi Positioning</legend>
+                    <label for="wifi_nof_msg_per_day">Num. of scans/day:</label><br />
+                    <input type="number" min="0" id="wifi_nof_msg_per_day" value="0"><br />
+                    <label for="wifi_nof_bssid">Num. of BSSID/scan:</label><br />
+                    <select id="wifi_nof_bssid">
+                        <option value="1">1</option>
+                        <option value="2">2</option>
+                        <option value="3">3</option>
+                        <option value="4" selected>4</option>
+                    </select>
+                </fieldset>
+
+                <fieldset class="flexitem">
+                    <legend>BLE Positioning</legend>
+                    <label for="ble_nof_msg_per_day">Num. of scans/day:</label><br />
+                    <input type="number" min="0" id="ble_nof_msg_per_day" value="0"><br />
+                    <label for="ble_nof_beaconid">Num. of beacon ID/scan:</label><br />
+                    <select id="ble_nof_beaconid">
+                        <option value="1">1</option>
+                        <option value="2">2</option>
+                        <option value="3">3</option>
+                        <option value="4" selected>4</option>
+                    </select><br />
+                    <label for="custom_ble_operation">BLE Operation:</label><br />
+                    <select id="custom_ble_operation">
+                        <option value="fast_adv">Fast advertisement (2s)</option>
+                        <option value="slow_adv">Slow advertisement (10s)</option>
+                        <option value="connected">Connected (2s)</option>
+                        <option value="slow_scan">Slow BLE scan (30s)</option>
+                        <option value="fast_scan">Fast BLE scan (8s)</option>
+                    </select><br />
+                    <label for="custom_ble_usage_time_per_day">BLE usage per day [h]:</label><br />
+                    <input type="number" min="0" id="custom_ble_usage_time_per_day" value="0">
+                </fieldset>
+
+            </div>
+
+            <!-- ── Profile-based config: rendered when a config file is loaded ── -->
+            <div id="geoloc_profiles_container" style="display:none;"></div>
 
         </div>
     </fieldset>
@@ -401,11 +455,27 @@
     ═════════════════════════════════════════════ -->
     <fieldset>
         <legend>LoRa Communication Consumption</legend>
-        <p style="margin:0 0 8px; color:#555; font-size:.88em;">
-            LoRa radio parameters (SF, TX Power, repetitions) are set in the General Settings above.
-            Message rates are configured in the CPU and Geolocation sections.
-        </p>
         <div class="flexcontainer">
+
+            <fieldset class="flexitem">
+                <legend>Radio Parameters</legend>
+                <label for="sf">Spreading Factor:</label><br />
+                <select id="sf">
+                    <option value="7">SF7</option>
+                    <option value="8">SF8</option>
+                    <option value="9">SF9</option>
+                    <option value="10" selected>SF10</option>
+                    <option value="11">SF11</option>
+                    <option value="12">SF12</option>
+                </select><br />
+                <label for="tx_power">TX Power:</label><br />
+                <select id="tx_power">
+                    <option value="_14dBm_">14 dBm</option>
+                    <option value="_17dBm_">17 dBm</option>
+                    <option value="_19dBm_" selected>19 dBm</option>
+                </select>
+            </fieldset>
+
             <fieldset class="flexitem">
                 <legend>Heartbeat &amp; Custom</legend>
                 <label>Heartbeat msgs/day:</label><br />
@@ -413,6 +483,7 @@
                 <label>Custom msgs/day:</label><br />
                 <input type="number" readonly id="lora_custom_ro" style="background:#f5f5f5;">
             </fieldset>
+
             <fieldset class="flexitem">
                 <legend>Geolocation Uplinks</legend>
                 <label>GPS uplinks/day:</label><br />
@@ -424,11 +495,7 @@
                 <label>BLE uplinks/day:</label><br />
                 <input type="number" readonly id="lora_ble_ro" style="background:#f5f5f5;">
             </fieldset>
-            <fieldset class="flexitem">
-                <legend>Scan Collection</legend>
-                <label>Reports/day:</label><br />
-                <input type="number" readonly id="lora_scancoll_ro" style="background:#f5f5f5;">
-            </fieldset>
+
         </div>
     </fieldset>
 
@@ -477,6 +544,9 @@
     <!-- ════════════════════════════════════════════
          RESULTS
     ═════════════════════════════════════════════ -->
+    <input type="hidden" id="custom_msg_nof_msg_per_day" value="0">
+    <input type="hidden" id="custom_msg_payl_len" value="17">
+
     <div id="results">
         <fieldset>
             <legend>Results</legend>
@@ -493,15 +563,31 @@
                     <div class="kpi-label">Battery Life</div>
                 </div>
                 <div class="kpi-card">
-                    <div class="kpi-value" id="kpi_total_ua">—</div>
-                    <div class="kpi-unit">µA avg</div>
-                    <div class="kpi-label">Total Current Draw</div>
-                </div>
-                <div class="kpi-card">
                     <div class="kpi-value" id="kpi_capacity">—</div>
                     <div class="kpi-unit">mAh</div>
-                    <div class="kpi-label">Practical Capacity</div>
+                    <div class="kpi-label">Battery Capacity</div>
                 </div>
+                <div class="kpi-card">
+                    <div class="kpi-value" id="kpi_annual_discharge_mah">—</div>
+                    <div class="kpi-unit">mAh / year</div>
+                    <div class="kpi-label">Self-Discharge Loss</div>
+                </div>
+            </div>
+
+            <!-- ── Geolocation Statistics (profile-based) ───────────────── -->
+            <div id="geoloc_stats_section" style="display:none;">
+                <fieldset>
+                    <legend>Geolocation Statistics</legend>
+                    <div id="geoloc_stats_content" class="flexcontainer"></div>
+                </fieldset>
+            </div>
+
+            <!-- ── General CPU Statistics ────────────────────────────────── -->
+            <div id="cpu_stats_section" style="display:none;">
+                <fieldset>
+                    <legend>General CPU Statistics</legend>
+                    <div id="cpu_stats_content"></div>
+                </fieldset>
             </div>
 
             <div class="diskanalyzer-layout">
@@ -515,7 +601,7 @@
                         <thead>
                             <tr>
                                 <th>Module / Component</th>
-                                <th class="right">µA avg</th>
+                                <th class="right">mAh</th>
                                 <th class="right">%</th>
                                 <th></th>
                             </tr>
@@ -528,6 +614,11 @@
             <p class="disclaimer">
                 Results are estimates. Actual battery life may differ due to environmental conditions, temperature, and duty-cycle variability.
             </p>
+            <div style="margin-top:12px; text-align:right;">
+                <button onclick="generateReport()" style="background:#008293;color:#fff;border:none;padding:7px 22px;border-radius:4px;font-size:.9rem;cursor:pointer;">
+                    Generate Report
+                </button>
+            </div>
         </fieldset>
     </div>
 
@@ -535,6 +626,278 @@
 
 <script src="abeeway_battery.js"></script>
 <script>
+
+    /***********************************************************************
+     * Device configuration file loader
+     ***********************************************************************/
+    window.deviceConfig = {};
+
+    function parseDeviceConfig(text) {
+        const config = {};
+        for (const line of text.split('\n')) {
+            const trimmed = line.trim();
+            if (!trimmed || trimmed.startsWith('#')) continue;
+            const eqIdx = trimmed.indexOf('=');
+            if (eqIdx === -1) continue;
+            const key = trimmed.slice(0, eqIdx).trim();
+            let val = trimmed.slice(eqIdx + 1).trim();
+            if (val.startsWith('"') && val.endsWith('"')) val = val.slice(1, -1);
+            config[key] = val;
+        }
+        return config;
+    }
+
+    function loadConfigFile(event) {
+        const file   = event.target.files[0];
+        const status = document.getElementById('config_status');
+        if (!file) { status.textContent = ''; return; }
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            window.deviceConfig     = parseDeviceConfig(e.target.result);
+            window.lastConfigFileName = file.name;
+            const count = Object.keys(window.deviceConfig).length;
+            status.style.color = '#008293';
+            status.textContent = `Loaded: ${file.name} — ${count} parameter(s) parsed.`;
+            renderGeolocProfiles();
+            updateGeneralFromConfig(window.deviceConfig);
+        };
+        reader.onerror = function() {
+            status.style.color = '#c00';
+            status.textContent = 'Error reading file.';
+        };
+        reader.readAsText(file);
+    }
+
+
+    /***********************************************************************
+     * Populate General Consumptions fields from a loaded config file.
+     ***********************************************************************/
+    function updateGeneralFromConfig(cfg) {
+        const setField = (id, val) => {
+            if (val !== undefined && val !== null && !isNaN(val)) {
+                document.getElementById(id).value = val;
+            }
+        };
+        setField('heartbeat_period_s',   parseFloat(cfg.lorawan_heartbeat_period));
+        setField('status_period_s',      parseFloat(cfg.core_status_period));
+        setField('monitoring_period_s',  parseFloat(cfg.core_monitoring_period));
+        syncLoraReadOnly();
+    }
+
+    /***********************************************************************
+     * Auto-load hardware measurements from hw_measurements.cfg at startup.
+     * Developer-managed — not exposed to end users.
+     ***********************************************************************/
+    fetch('hw_measurements.cfg?v=' + Date.now(), { cache: 'no-store' })
+        .then(r => { if (!r.ok) throw new Error(r.status); return r.text(); })
+        .then(text => {
+            const applied = applyHardwareMeasurements(parseDeviceConfig(text));
+            console.info(`[hw] ${applied} measurement(s) loaded from hw_measurements.cfg`);
+        })
+        .catch(err => {
+            console.warn('[hw] hw_measurements.cfg not loaded, using built-in defaults.', err.message);
+        });
+
+    /***********************************************************************
+     * Geolocation profile renderer
+     ***********************************************************************/
+    const GEOLOC_TECHNO = {
+        0x01: { name: 'AGNSS',      params: ['on_time', 'nb_sat']       },
+        0x02: { name: 'WiFi',       params: ['nb_ap']                   },
+        0x03: { name: 'BLE Scan 1', params: ['scan_dur', 'nb_beacons']  },
+        0x04: { name: 'BLE Scan 2', params: ['scan_dur', 'nb_beacons']  },
+        0x05: { name: 'LPGPS',      params: ['ttff', 'conv']            },
+        0x06: { name: 'GNSS',       params: ['ttff', 'conv']            },
+    };
+
+    const TECHNO_PARAM_META = {
+        ttff:       { label: 'TTFF [s]',            type: 'number', def: 30   },
+        conv:       { label: 'Convergence [s]',      type: 'number', def: 20   },
+        on_time:    { label: 'On time [s]',          type: 'number', def: 45   },
+        nb_sat:     { label: 'Num. satellites',      type: 'select', def: 5, opts: [1,2,3,4,5] },
+        nb_ap:      { label: 'Num. APs',             type: 'select', def: 4, opts: [1,2,3,4]   },
+        scan_dur:   { label: 'Scan duration [ms]',   type: 'number', def: 3000 },
+        nb_beacons: { label: 'Num. beacons',         type: 'select', def: 4, opts: [1,2,3,4]   },
+    };
+
+    function getConfigDefault(cfg, technoCode, paramKey) {
+        const c = cfg || {};
+        const maps = {
+            0x01: { on_time: +c.gnss_agnss_max_time        || 45, nb_sat: null },
+            0x02: { nb_ap:   +c.lr_wifi_report_nb_bssid    || 4  },
+            0x03: { scan_dur: +c.ble_scan1_duration         || 3000,
+                    nb_beacons: +c.ble_scan1_nb_beacons     || 4  },
+            0x04: { scan_dur: +c.ble_scan2_duration         || 3000,
+                    nb_beacons: +c.ble_scan2_nb_beacons     || 4  },
+            0x05: { ttff: +c.gnss_t0_timeout_motion         || 30,
+                    conv: +c.gnss_convergence_motion         || 20 },
+            0x06: { ttff: +c.gnss_t0_timeout_motion         || 30,
+                    conv: +c.gnss_convergence_motion         || 20 },
+        };
+        const m = maps[technoCode];
+        return m && m[paramKey] != null ? m[paramKey] : undefined;
+    }
+
+    function parseGeolocProfile(str) {
+        if (!str) return [0, 0, 0, 0, 0, 0];
+        return str.replace(/[{}"'\s]/g, '').split(',')
+                  .map(s => parseInt(s, 16) || 0)
+                  .concat([0, 0, 0, 0, 0, 0]).slice(0, 6);
+    }
+
+    function buildSlotHTML(pi, si, raw, cfg, isFirst = false) {
+        const tc         = raw & 0x7F;
+        const alwaysDone = !!(raw & 0x80);
+        const techno     = GEOLOC_TECHNO[tc];
+        if (!techno) return '';
+
+        const failId     = `geoloc_p${pi}_s${si}_fail_pct`;
+        const badgeClass = isFirst ? 'badge-always' : (alwaysDone ? 'badge-always' : 'badge-cond');
+        const badgeLabel = isFirst ? 'First slot'   : (alwaysDone ? '&#10003; Always Done' : 'Conditional');
+        const failHint   = isFirst
+            ? 'First techno in the chain — always executed.'
+            : (alwaysDone
+                ? 'Always executed regardless of previous result. Failure probability drives downstream conditional slots.'
+                : 'Executed only if the preceding slot failed.');
+
+        const paramsHTML = techno.params.map(pk => {
+            const meta   = TECHNO_PARAM_META[pk];
+            const eid    = `geoloc_p${pi}_s${si}_${pk}`;
+            const cfgVal = getConfigDefault(cfg, tc, pk);
+            const val    = cfgVal !== undefined ? cfgVal : meta.def;
+            if (meta.type === 'select') {
+                const opts = meta.opts.map(v =>
+                    `<option value="${v}"${v === val ? ' selected' : ''}>${v}</option>`
+                ).join('');
+                return `<label for="${eid}">${meta.label}:</label><br>
+                        <select id="${eid}">${opts}</select><br>`;
+            }
+            return `<label for="${eid}">${meta.label}:</label><br>
+                    <input type="number" min="0" id="${eid}" value="${val}"><br>`;
+        }).join('');
+
+        return `
+        <div class="techno-slot">
+            <div class="techno-slot-header">
+                <span class="techno-name">${techno.name}</span>
+                <span class="badge ${badgeClass}">${badgeLabel}</span>
+                <span class="slot-order">Slot ${si + 1}</span>
+            </div>
+            <label for="${failId}">Failure probability [%]:</label><br>
+            <input type="number" min="0" max="100" id="${failId}" value="0"><br>
+            <small style="color:#888;">${failHint}</small>
+            ${paramsHTML ? '<hr style="margin:6px 0;">' + paramsHTML : ''}
+        </div>`;
+    }
+
+    function renderGeolocProfiles() {
+        const cfg = window.deviceConfig || {};
+        const profiles = [0, 1, 2].map(i =>
+            parseGeolocProfile(cfg[`geoloc_gbe_profile${i}_techno`])
+        );
+
+        const container = document.getElementById('geoloc_profiles_container');
+        const manual    = document.getElementById('geoloc_manual_config');
+
+        const activeProfiles = profiles
+            .map((slots, i) => ({ slots, i }))
+            .filter(({ slots }) => slots.some(s => (s & 0x7F) !== 0));
+
+        if (activeProfiles.length === 0) {
+            container.innerHTML     = '';
+            container.style.display = 'none';
+            manual.style.display    = 'contents';
+            return;
+        }
+
+        manual.style.display    = 'none';
+        container.style.display = 'flex';
+
+        const allTechnoIds = Object.keys(GEOLOC_TECHNO).map(Number);
+
+        container.innerHTML = activeProfiles.map(({ slots, i: pi }) => {
+            const activeSlots = slots
+                .map((raw, si) => ({ raw, si }))
+                .filter(({ raw }) => (raw & 0x7F) !== 0);
+
+            const usedIds   = new Set(activeSlots.map(({ raw }) => raw & 0x7F));
+            const lockedIds = allTechnoIds.filter(id => !usedIds.has(id));
+
+            const summary = activeSlots.map(({ raw }) => {
+                const t = GEOLOC_TECHNO[raw & 0x7F];
+                return ((raw & 0x80) ? '★ ' : '') + (t ? t.name : '?');
+            }).join(' → ');
+
+            // Slots side by side in a horizontal row
+            const slotsHTML = `<div class="geoloc-techno-row">${
+                activeSlots.map(({ raw, si }, idx) => buildSlotHTML(pi, si, raw, cfg, idx === 0)).join('')
+            }</div>`;
+
+            const lockedHTML = lockedIds.length ? `
+            <div class="techno-locked-section">
+                <small style="color:#999;">Not in this profile (locked):</small>
+                <div class="techno-locked-tags">
+                    ${lockedIds.map(id =>
+                        `<span class="techno-locked-tag">${GEOLOC_TECHNO[id].name}</span>`
+                    ).join('')}
+                </div>
+            </div>` : '';
+
+            return `
+            <fieldset class="geoloc-profile-fs">
+                <legend>Profile ${pi} <span class="profile-summary">${summary}</span></legend>
+                ${slotsHTML}
+                ${lockedHTML}
+            </fieldset>`;
+        }).join('');
+
+        // Store parsed profile data globally for power estimation
+        window.geolocProfiles = activeProfiles.map(({ slots, i }) => ({
+            profileIndex: i,
+            triggers: parseInt(cfg[`geoloc_profile${i}_triggers`]) || 0,
+            slots: slots
+                .map((raw, si) => ({ raw, si }))
+                .filter(({ raw }) => (raw & 0x7F) !== 0)
+                .map(({ raw, si }) => ({
+                    slotIndex:   si,
+                    technoCode:  raw & 0x7F,
+                    technoName:  (GEOLOC_TECHNO[raw & 0x7F] || {}).name || '?',
+                    alwaysDone:  !!(raw & 0x80),
+                }))
+        }));
+    }
+
+    /***********************************************************************
+     * Motion / Static percentage linked fields
+     ***********************************************************************/
+    function onMotionPctChange(el) {
+        const v = Math.min(100, Math.max(0, parseFloat(el.value) || 0));
+        el.value = v;
+        document.getElementById('static_pct').value = 100 - v;
+    }
+
+    function onStaticPctChange(el) {
+        const v = Math.min(100, Math.max(0, parseFloat(el.value) || 0));
+        el.value = v;
+        document.getElementById('motion_pct').value = 100 - v;
+    }
+
+    /***********************************************************************
+     * Discharge profile preset handler
+     ***********************************************************************/
+    function onDischargeProfileChange() {
+        const sel   = document.getElementById('discharge_profile');
+        const field = document.getElementById('annual_discharge_pct');
+        if (sel.value === 'custom') {
+            field.removeAttribute('readonly');
+            field.style.background = '';
+            field.focus();
+        } else {
+            field.setAttribute('readonly', true);
+            field.style.background = '#f5f5f5';
+            field.value = sel.value;
+        }
+    }
 
     /***********************************************************************
      * Cellular lock/unlock based on product selection
@@ -552,20 +915,31 @@
         });
 
         notice.style.display = isCombo ? 'none' : 'block';
+
+        // CPU idle default: 11 µA for Combo, 8 µA for others
+        const idleField = document.getElementById('cpu_idle_ua');
+        if (!idleField._userEdited) idleField.value = isCombo ? 11 : 8;
     }
+    document.getElementById('cpu_idle_ua').addEventListener('change', function() {
+        this._userEdited = true;
+    });
     onProductChange(); // run on page load to set initial state
 
     /***********************************************************************
      * Mirror values into the read-only LoRa summary panel
      ***********************************************************************/
+    function periodToMsgPerDay(periodS) {
+        const p = parseFloat(periodS) || 0;
+        return p > 0 ? (86400 / p).toFixed(2) : '0';
+    }
+
     function syncLoraReadOnly() {
-        document.getElementById('lora_heartbeat_ro').value = document.getElementById('heartbeat_nof_msg_per_day').value;
+        document.getElementById('lora_heartbeat_ro').value = periodToMsgPerDay(document.getElementById('heartbeat_period_s').value);
         document.getElementById('lora_gps_ro').value       = document.getElementById('gps_nof_msg_per_day').value;
         document.getElementById('lora_agps_ro').value      = document.getElementById('agps_nof_msg_per_day').value;
         document.getElementById('lora_wifi_ro').value      = document.getElementById('wifi_nof_msg_per_day').value;
         document.getElementById('lora_ble_ro').value       = document.getElementById('ble_nof_msg_per_day').value;
         document.getElementById('lora_custom_ro').value    = document.getElementById('custom_msg_nof_msg_per_day').value;
-        document.getElementById('lora_scancoll_ro').value  = document.getElementById('scancoll_nof_msg_per_day').value;
     }
     document.addEventListener('input', syncLoraReadOnly);
     syncLoraReadOnly();
@@ -580,8 +954,9 @@
             label: 'CPU & System',
             color: '#005f6b',
             components: [
-                { key: 'cpu_quiescent',     label: 'Quiescent + Battery Leakage', color: '#008293' },
-                { key: 'cpu_accelerometer', label: 'Accelerometer',                color: '#33b5c4' },
+                { key: 'cpu_quiescent',  label: 'Quiescent + Battery Leakage', color: '#008293' },
+                { key: 'cpu_idle',       label: 'CPU Idle',                     color: '#33b5c4' },
+                { key: 'cpu_monitoring', label: 'Monitoring',                   color: '#66d0dd' },
             ]
         },
         {
@@ -609,7 +984,8 @@
             color: '#00524a',
             components: [
                 { key: 'lora_heartbeat',      label: 'Heartbeat Uplinks',  color: '#006b60' },
-                { key: 'lora_custom_msg',      label: 'Custom Messages',    color: '#00897b' },
+                { key: 'lora_status_msg',     label: 'Status Messages',    color: '#009688' },
+                { key: 'lora_custom_msg',     label: 'Custom Messages',    color: '#00897b' },
                 { key: 'lora_scan_collection', label: 'Scan Collection',    color: '#26a69a' },
                 { key: 'lora_custom_ble',      label: 'Custom BLE Usage',   color: '#4dbfb4' },
             ]
@@ -627,52 +1003,356 @@
     let sunburstChart = null;
 
     /***********************************************************************
+     * Compute all geolocation inputs from active profiles + config periods
+     * Returns { technoMsg, stats, triggersPerDay }
+     ***********************************************************************/
+    function computeGeolocFromProfiles() {
+        const cfg          = window.deviceConfig || {};
+        const motionPeriod = parseFloat(cfg.geoloc_motion_period) || 300;   // [s]
+        const staticPeriod = parseFloat(cfg.geoloc_static_period) || 3600;  // [s]
+        const motionFrac   = (parseFloat(document.getElementById('motion_pct').value) || 50) / 100;
+
+        // Overall trigger rate (used for summary display and fallback)
+        const triggersPerDay = motionFrac * (86400 / motionPeriod)
+                             + (1 - motionFrac) * (86400 / staticPeriod);
+
+        /**
+         * Per-profile trigger rate based on geoloc_profileX_triggers bitmap.
+         * Bit 4 (0x10) = geo_trigger_in_motion
+         * Bit 5 (0x20) = geo_trigger_in_static
+         * If a bit is 0, that state contributes 0 triggers for this profile.
+         */
+        function profileTriggersPerDay(profile) {
+            const bm = profile.triggers;
+            const motionContrib = (bm & 0x10) ? motionFrac * (86400 / motionPeriod) : 0;
+            const staticContrib = (bm & 0x20) ? (1 - motionFrac) * (86400 / staticPeriod) : 0;
+            return motionContrib + staticContrib;
+        }
+
+        // Accumulated effective nof_msg_per_day per techno type
+        const technoMsg = {
+            gnss:  { nof: 0, ttff: 30, conv: 20 },
+            lpgps: { nof: 0, ttff: 30, conv: 20 },
+            agnss: { nof: 0, on_time: 45, nb_sat: 5 },
+            wifi:  { nof: 0, nb_ap: 4 },
+            ble:   { nof: 0, nb_beacons: 4 },
+        };
+
+        const stats = [];
+
+        for (const profile of window.geolocProfiles) {
+            const probs       = computeSlotProbabilities(profile);
+            const perProfileTriggers = profileTriggersPerDay(profile);
+            const profileStats = {
+                profileIndex:    profile.profileIndex,
+                triggers:        profile.triggers,
+                triggersPerDay:  perProfileTriggers,
+                slots: [],
+            };
+
+            for (let i = 0; i < profile.slots.length; i++) {
+                const slot     = profile.slots[i];
+                const runProb  = probs[i];
+                const runsPerDay = perProfileTriggers * runProb;
+
+                const failEl   = document.getElementById(`geoloc_p${profile.profileIndex}_s${slot.slotIndex}_fail_pct`);
+                const failPct  = failEl ? (parseFloat(failEl.value) || 0) : 0;
+
+                const getP = (key, def) => {
+                    const el = document.getElementById(`geoloc_p${profile.profileIndex}_s${slot.slotIndex}_${key}`);
+                    return el ? (parseFloat(el.value) || def) : def;
+                };
+
+                switch (slot.technoCode) {
+                    case 0x06:  // GNSS
+                        technoMsg.gnss.nof  += runsPerDay;
+                        technoMsg.gnss.ttff  = getP('ttff', 30);
+                        technoMsg.gnss.conv  = getP('conv', 20);
+                        break;
+                    case 0x05:  // LPGPS
+                        technoMsg.lpgps.nof  += runsPerDay;
+                        technoMsg.lpgps.ttff  = getP('ttff', 30);
+                        technoMsg.lpgps.conv  = getP('conv', 20);
+                        break;
+                    case 0x01:  // AGNSS
+                        technoMsg.agnss.nof     += runsPerDay;
+                        technoMsg.agnss.on_time  = getP('on_time', 45);
+                        technoMsg.agnss.nb_sat   = getP('nb_sat', 5);
+                        break;
+                    case 0x02:  // WiFi
+                        technoMsg.wifi.nof    += runsPerDay;
+                        technoMsg.wifi.nb_ap   = getP('nb_ap', 4);
+                        break;
+                    case 0x03:  // BLE Scan 1
+                    case 0x04:  // BLE Scan 2
+                        technoMsg.ble.nof        += runsPerDay;
+                        technoMsg.ble.nb_beacons  = getP('nb_beacons', 4);
+                        break;
+                }
+
+                profileStats.slots.push({
+                    slotIndex:      i,
+                    origSlotIndex:  slot.slotIndex,
+                    technoCode:     slot.technoCode,
+                    technoName:     slot.technoName,
+                    alwaysDone:     slot.alwaysDone,
+                    isFirst:        i === 0,
+                    runProb,
+                    runsPerDay,
+                    successesPerDay: runsPerDay * (1 - failPct / 100),
+                    failuresPerDay:  runsPerDay * (failPct / 100),
+                    failPct,
+                });
+            }
+
+            stats.push(profileStats);
+        }
+
+        return { technoMsg, stats, triggersPerDay };
+    }
+
+    /***********************************************************************
+     * Render geolocation statistics section (per profile)
+     ***********************************************************************/
+    function renderGeolocStats(geolocData, batteryLifeDays) {
+        const section = document.getElementById('geoloc_stats_section');
+        const content = document.getElementById('geoloc_stats_content');
+
+        if (!geolocData) {
+            section.style.display = 'none';
+            return;
+        }
+
+        section.style.display = '';
+        const { stats, triggersPerDay } = geolocData;
+
+        const fmt  = n => n.toLocaleString(undefined, { maximumFractionDigits: 1 });
+        const fmtI = n => Math.round(n).toLocaleString();
+
+        content.innerHTML = stats.map(ps => {
+            const rows = ps.slots.map(s => {
+                const modeClass = s.isFirst ? 'badge-always' : (s.alwaysDone ? 'badge-always' : 'badge-cond');
+                const modeLabel = s.isFirst ? 'First slot'   : (s.alwaysDone ? '✓ Always Done' : 'Conditional');
+                return `
+                <tr>
+                    <td>${s.technoName}</td>
+                    <td><span class="badge ${modeClass}">${modeLabel}</span></td>
+                    <td>${(s.runProb * 100).toFixed(1)} %</td>
+                    <td>${s.failPct.toFixed(1)} %</td>
+                    <td>${fmt(s.runsPerDay)}</td>
+                    <td>${fmt(s.successesPerDay)}</td>
+                    <td>${fmt(s.failuresPerDay)}</td>
+                    <td>${fmtI(s.runsPerDay * batteryLifeDays)}</td>
+                </tr>`;
+            }).join('');
+
+            const periodInfo = (() => {
+                const cfg = window.deviceConfig || {};
+                const mp  = parseFloat(cfg.geoloc_motion_period) || 300;
+                const sp  = parseFloat(cfg.geoloc_static_period) || 3600;
+                const mf  = (parseFloat(document.getElementById('motion_pct').value) || 50);
+                const inMotion = !!(ps.triggers & 0x10);
+                const inStatic = !!(ps.triggers & 0x20);
+                const motionPart = inMotion
+                    ? `Motion: 1 fix / ${mp} s`
+                    : `<span style="color:#e05">Motion: disabled (bit 4 = 0)</span>`;
+                const staticPart = inStatic
+                    ? `Static: 1 fix / ${sp} s`
+                    : `<span style="color:#e05">Static: disabled (bit 5 = 0)</span>`;
+                return `${motionPart} &nbsp;·&nbsp; ${staticPart} &nbsp;·&nbsp; Motion ${mf} % / Static ${100 - mf} %`;
+            })();
+
+            return `
+            <fieldset class="flexitem geoloc-stats-profile">
+                <legend>Profile ${ps.profileIndex}</legend>
+                <div class="geoloc-stats-meta">
+                    ${periodInfo}
+                    &nbsp;·&nbsp; <strong>${fmt(ps.triggersPerDay)}</strong> geoloc triggers / day
+                </div>
+                <table class="geoloc-stats-table">
+                    <thead>
+                        <tr>
+                            <th>Technology</th>
+                            <th>Mode</th>
+                            <th>Run prob.</th>
+                            <th>Fail prob.</th>
+                            <th>Runs / day</th>
+                            <th>Success / day</th>
+                            <th>Failures / day</th>
+                            <th>Total (lifetime)</th>
+                        </tr>
+                    </thead>
+                    <tbody>${rows}</tbody>
+                    <tfoot>
+                        <tr><td colspan="7">
+                            Battery lifetime: <strong>${Math.round(batteryLifeDays).toLocaleString()} days</strong>
+                            &nbsp;·&nbsp; Total geoloc triggers: <strong>${fmtI(ps.triggersPerDay * batteryLifeDays)}</strong>
+                        </td></tr>
+                    </tfoot>
+                </table>
+            </fieldset>`;
+        }).join('');
+    }
+
+    /***********************************************************************
+     * Render General CPU Statistics section
+     ***********************************************************************/
+    function renderCpuStats(result, input) {
+        const section = document.getElementById('cpu_stats_section');
+        const content = document.getElementById('cpu_stats_content');
+        section.style.display = '';
+
+        const lifeDays  = result.battery_life_days;
+        const lifetimeH = lifeDays * 24;
+        const fmtI = n => Math.round(n).toLocaleString();
+        const fmtF = n => n.toLocaleString(undefined, { maximumFractionDigits: 2 });
+
+        // Heartbeat
+        const hbPeriod  = parseFloat(document.getElementById('heartbeat_period_s').value) || 0;
+        const hbPerDay  = hbPeriod > 0 ? 86400 / hbPeriod : 0;
+        const hbTotal   = Math.round(hbPerDay * lifeDays);
+
+        // Status message
+        const stPeriod  = parseFloat(document.getElementById('status_period_s').value) || 0;
+        const stPerDay  = stPeriod > 0 ? 86400 / stPeriod : 0;
+        const stTotal   = Math.round(stPerDay * lifeDays);
+
+        // CPU group mAh
+        const cpuMah = ((result.group_currents_ma.cpu || 0) * lifetimeH).toFixed(1);
+
+        const msgRow = (label, period, perDay, total) => {
+            if (period <= 0) return `
+                <tr>
+                    <td>${label}</td>
+                    <td colspan="3" style="color:#aaa;">Disabled (period = 0)</td>
+                </tr>`;
+            return `
+                <tr>
+                    <td>${label}</td>
+                    <td class="right">${period} s</td>
+                    <td class="right">${fmtF(perDay)} / day</td>
+                    <td class="right"><strong>${fmtI(total)}</strong> total</td>
+                </tr>`;
+        };
+
+        content.innerHTML = `
+            <table class="geoloc-stats-table" style="margin-bottom:10px;">
+                <thead>
+                    <tr>
+                        <th>Message type</th>
+                        <th class="right">Period</th>
+                        <th class="right">Rate</th>
+                        <th class="right">Lifetime total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${msgRow('Heartbeat',       hbPeriod, hbPerDay, hbTotal)}
+                    ${msgRow('Status message',  stPeriod, stPerDay, stTotal)}
+                </tbody>
+            </table>
+            <div style="font-size:.85rem; color:#555;">
+                CPU &amp; System total consumption: <strong style="color:#008293;">${cpuMah} mAh</strong>
+                over the estimated battery lifetime (${Math.round(lifeDays).toLocaleString()} days).
+            </div>`;
+    }
+
+    /***********************************************************************
+     * Profile slot occurrence probability
+     * Returns array of P(slot runs) for each slot in a profile.
+     *  - Slot 0 and "Always Done" slots: P = 1.0
+     *  - Conditional slot i: P = P_run[i-1] × (fail_pct[i-1] / 100)
+     ***********************************************************************/
+    function computeSlotProbabilities(profile) {
+        const probs = [];
+        for (let i = 0; i < profile.slots.length; i++) {
+            let p;
+            if (i === 0 || profile.slots[i].alwaysDone) {
+                p = 1.0;
+            } else {
+                const prev   = profile.slots[i - 1];
+                const failEl = document.getElementById(`geoloc_p${profile.profileIndex}_s${prev.slotIndex}_fail_pct`);
+                const failPct = failEl ? (parseFloat(failEl.value) || 0) : 0;
+                p = probs[i - 1] * (failPct / 100);
+            }
+            probs.push(p);
+        }
+        return probs;
+    }
+
+    /***********************************************************************
      * Main calculation
      ***********************************************************************/
     function calculate() {
 
         const input = {
-            product:            document.getElementById('product').value,
-            tx_power:           document.getElementById('tx_power').value,
-            sf:                 parseInt(document.getElementById('sf').value),
-            nof_msg_repetition: parseInt(document.getElementById('nof_msg_repetition').value),
-            accelerometer_on:   document.getElementById('accelerometer_on').checked,
+            product:               document.getElementById('product').value,
+            tx_power:              document.getElementById('tx_power').value,
+            sf:                    parseInt(document.getElementById('sf').value),
+            battery_capacity_mah:  parseFloat(document.getElementById('battery_capacity_mah').value) || 1300,
+            annual_discharge_pct:  parseFloat(document.getElementById('annual_discharge_pct').value) || 2.4,
+            cpu_idle_ua: parseFloat(document.getElementById('cpu_idle_ua').value) || 0,
+
+            monitoring: {
+                period_s:   parseFloat(document.getElementById('monitoring_period_s').value)   || 300,
+                current_ma: parseFloat(document.getElementById('monitoring_current_ma').value) || 5,
+                window_ms:  parseFloat(document.getElementById('monitoring_window_ms').value)  || 10,
+            },
 
             custom_msg: {
                 nof_msg_per_day: parseInt(document.getElementById('custom_msg_nof_msg_per_day').value) || 0,
                 payl_len:        parseInt(document.getElementById('custom_msg_payl_len').value)        || 17,
             },
             heartbeat: {
-                nof_msg_per_day: parseInt(document.getElementById('heartbeat_nof_msg_per_day').value) || 0,
+                nof_msg_per_day: (function() {
+                    const p = parseFloat(document.getElementById('heartbeat_period_s').value) || 0;
+                    return p > 0 ? 86400 / p : 0;
+                })(),
             },
-            gps: {
-                nof_msg_per_day: parseInt(document.getElementById('gps_nof_msg_per_day').value)  || 0,
-                ttff:            parseFloat(document.getElementById('gps_ttff').value)            || 0,
-                conv_time:       parseFloat(document.getElementById('gps_conv_time').value)       || 0,
+            status_msg: {
+                nof_msg_per_day: (function() {
+                    const p = parseFloat(document.getElementById('status_period_s').value) || 0;
+                    return p > 0 ? 86400 / p : 0;
+                })(),
             },
-            agps: {
-                nof_msg_per_day: parseInt(document.getElementById('agps_nof_msg_per_day').value)  || 0,
-                on_time:         parseFloat(document.getElementById('agps_on_time').value)        || 0,
-                nof_satellites:  parseInt(document.getElementById('agps_nof_satellites').value)   || 5,
-            },
-            wifi: {
-                nof_msg_per_day: parseInt(document.getElementById('wifi_nof_msg_per_day').value)  || 0,
-                nof_bssid:       parseInt(document.getElementById('wifi_nof_bssid').value)        || 4,
-            },
-            ble: {
-                nof_msg_per_day: parseInt(document.getElementById('ble_nof_msg_per_day').value)   || 0,
-                nof_beaconid:    parseInt(document.getElementById('ble_nof_beaconid').value)      || 4,
-            },
+            ...(function() {
+                // ── Geoloc inputs: profile-aware when config loaded, else manual ──
+                const useProfiles = window.geolocProfiles?.length > 0
+                                 && Object.keys(window.deviceConfig || {}).length > 0;
+                if (useProfiles) {
+                    const { technoMsg } = computeGeolocFromProfiles();
+                    return {
+                        gps:  { nof_msg_per_day: technoMsg.gnss.nof + technoMsg.lpgps.nof,
+                                ttff: technoMsg.gnss.ttff || technoMsg.lpgps.ttff,
+                                conv_time: technoMsg.gnss.conv || technoMsg.lpgps.conv },
+                        agps: { nof_msg_per_day: technoMsg.agnss.nof,
+                                on_time: technoMsg.agnss.on_time,
+                                nof_satellites: technoMsg.agnss.nb_sat },
+                        wifi: { nof_msg_per_day: technoMsg.wifi.nof,
+                                nof_bssid: technoMsg.wifi.nb_ap },
+                        ble:  { nof_msg_per_day: technoMsg.ble.nof,
+                                nof_beaconid: technoMsg.ble.nb_beacons },
+                    };
+                }
+                return {
+                    gps:  { nof_msg_per_day: parseInt(document.getElementById('gps_nof_msg_per_day').value)  || 0,
+                            ttff:     parseFloat(document.getElementById('gps_ttff').value)      || 0,
+                            conv_time: parseFloat(document.getElementById('gps_conv_time').value) || 0 },
+                    agps: { nof_msg_per_day: parseInt(document.getElementById('agps_nof_msg_per_day').value) || 0,
+                            on_time:        parseFloat(document.getElementById('agps_on_time').value)        || 0,
+                            nof_satellites: parseInt(document.getElementById('agps_nof_satellites').value)   || 5 },
+                    wifi: { nof_msg_per_day: parseInt(document.getElementById('wifi_nof_msg_per_day').value) || 0,
+                            nof_bssid:       parseInt(document.getElementById('wifi_nof_bssid').value)       || 4 },
+                    ble:  { nof_msg_per_day: parseInt(document.getElementById('ble_nof_msg_per_day').value)  || 0,
+                            nof_beaconid:    parseInt(document.getElementById('ble_nof_beaconid').value)     || 4 },
+                };
+            })(),
             custom_ble: {
                 usage_time_per_day: parseFloat(document.getElementById('custom_ble_usage_time_per_day').value) || 0,
                 operation:          document.getElementById('custom_ble_operation').value,
             },
             scan_collection: {
-                nof_msg_per_day: parseInt(document.getElementById('scancoll_nof_msg_per_day').value) || 0,
-                tech:    document.getElementById('scancoll_tech_ble').checked ? 'BLE' : 'WiFi',
-                idtype:  document.getElementById('scancoll_tech_ble').checked && document.getElementById('scancoll_idtype_id').checked ? 'ID' : 'MAC',
-                max_payl_len: parseInt(document.getElementById('scancoll_max_payl_len').value),
-                nof_id:       parseInt(document.getElementById('scancoll_nof_id').value),
+                nof_msg_per_day: 0,
+                tech: 'BLE', idtype: 'MAC', max_payl_len: 92, nof_id: 0,
             },
             cellular: (function() {
                 const isCombo = document.getElementById('product').value === 'combo_tracker';
@@ -692,11 +1372,23 @@
         const result = calculate_battery_life_time(input);
         const totalUa = result.total_current_ma * 1000;
 
+        // Geolocation statistics (profile-based)
+        const useProfiles = window.geolocProfiles?.length > 0
+                         && Object.keys(window.deviceConfig || {}).length > 0;
+        const geolocData = useProfiles ? computeGeolocFromProfiles() : null;
+        renderGeolocStats(geolocData, result.battery_life_days);
+        renderCpuStats(result, input);
+
+        // Store for report generation
+        window.lastResult      = result;
+        window.lastInput       = input;
+        window.lastGeolocStats = geolocData;
+
         // KPIs
         document.getElementById('kpi_days').textContent     = result.battery_life_days.toLocaleString();
         document.getElementById('kpi_years').textContent    = (result.battery_life_days / 365).toFixed(2);
-        document.getElementById('kpi_total_ua').textContent = Math.round(totalUa);
-        document.getElementById('kpi_capacity').textContent = Math.round(result.battery.practical_capacity);
+        document.getElementById('kpi_capacity').textContent             = Math.round(result.battery.capacity_mah);
+        document.getElementById('kpi_annual_discharge_mah').textContent = result.battery.annual_discharge_mah;
 
         // ── Build single-ring disk data (components only) ────────────────
         const diskData   = [], diskColors = [], diskLabels = [], diskKeys = [];
@@ -735,8 +1427,8 @@
                                 title: ctx => ctx[0].label,
                                 label: ctx => {
                                     const key = diskKeys[ctx.dataIndex];
-                                    const ua  = Math.round((result.components_ma[key] || 0) * 1000);
-                                    return ` ${ua} µA avg  (${ctx.parsed.toFixed(1)}%)`;
+                                    const mah = ((result.components_ma[key] || 0) * result.battery_life_days * 24).toFixed(1);
+                                    return ` ${mah} mAh  (${ctx.parsed.toFixed(1)}%)`;
                                 }
                             }
                         }
@@ -749,11 +1441,15 @@
         const tbody = document.getElementById('legend-tbody');
         tbody.innerHTML = '';
 
-        GROUPS.forEach(g => {
-            const groupUa  = Math.round((result.group_currents_ma[g.key] || 0) * 1000);
-            const groupPct = totalUa > 0 ? (groupUa / totalUa * 100).toFixed(1) : '0.0';
+        const lifetimeH = result.battery_life_days * 24;
+        const fmtMah = v => (v * lifetimeH).toFixed(1);
 
-            // Group header row
+        GROUPS.forEach(g => {
+            const groupMah = fmtMah(result.group_currents_ma[g.key] || 0);
+            const groupPct = totalUa > 0
+                ? ((result.group_currents_ma[g.key] || 0) * 1000 / totalUa * 100).toFixed(1)
+                : '0.0';
+
             const gRow = document.createElement('tr');
             gRow.className = 'group-row';
             gRow.innerHTML = `
@@ -761,7 +1457,7 @@
                     <span class="legend-swatch" style="background:${g.color};"></span>
                     ${g.label}
                 </td>
-                <td class="right">${groupUa}</td>
+                <td class="right">${groupMah}</td>
                 <td class="right">${groupPct}%</td>
                 <td>
                     <div class="pct-bar-wrap">
@@ -770,10 +1466,11 @@
                 </td>`;
             tbody.appendChild(gRow);
 
-            // Component rows
             g.components.forEach(c => {
-                const compUa  = Math.round((result.components_ma[c.key] || 0) * 1000);
-                const compPct = totalUa > 0 ? (compUa / totalUa * 100).toFixed(1) : '0.0';
+                const compMah = fmtMah(result.components_ma[c.key] || 0);
+                const compPct = totalUa > 0
+                    ? ((result.components_ma[c.key] || 0) * 1000 / totalUa * 100).toFixed(1)
+                    : '0.0';
                 const cRow = document.createElement('tr');
                 cRow.className = 'comp-row';
                 cRow.innerHTML = `
@@ -781,7 +1478,7 @@
                         <span class="legend-swatch" style="background:${c.color};"></span>
                         ${c.label}
                     </td>
-                    <td class="right">${compUa}</td>
+                    <td class="right">${compMah}</td>
                     <td class="right">${compPct}%</td>
                     <td>
                         <div class="pct-bar-wrap">
@@ -792,17 +1489,293 @@
             });
         });
 
-        // Total row
+        // Total row — total mAh = battery capacity by definition
         const totalRow = document.createElement('tr');
         totalRow.innerHTML = `
             <td style="font-weight:bold; padding:6px 10px; border-top:2px solid #aaa;">Total</td>
-            <td class="right" style="font-weight:bold; padding:6px 10px; border-top:2px solid #aaa;">${Math.round(totalUa)}</td>
+            <td class="right" style="font-weight:bold; padding:6px 10px; border-top:2px solid #aaa;">${result.battery.capacity_mah.toFixed(1)}</td>
             <td class="right" style="font-weight:bold; padding:6px 10px; border-top:2px solid #aaa;">100%</td>
             <td style="border-top:2px solid #aaa;"></td>`;
         tbody.appendChild(totalRow);
 
         document.getElementById('results').style.display = 'block';
         document.getElementById('results').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    /***********************************************************************
+     * Report generation — direct PDF download via pdfmake (no html2canvas)
+     * Standard PDF Helvetica fonts are used — no vfs_fonts.js required.
+     ***********************************************************************/
+
+    function generateReport() {
+        if (!window.lastResult) {
+            alert('Please run a calculation first.');
+            return;
+        }
+
+        const result      = window.lastResult;
+        const input       = window.lastInput;
+        const geoData     = window.lastGeolocStats;
+        const totalUa     = result.total_current_ma * 1000;
+        const now         = new Date().toLocaleString();
+        const chartImg    = document.getElementById('sunburstChart').toDataURL('image/png');
+        const productEl   = document.getElementById('product');
+        const productName = productEl.options[productEl.selectedIndex].text;
+        const configFile  = window.lastConfigFileName || 'Manual configuration';
+
+        const TEAL   = '#008293';
+        const fmt    = n => n.toLocaleString(undefined, { maximumFractionDigits: 1 });
+        const fmtI   = n => Math.round(n).toLocaleString();
+        const mPct   = document.getElementById('motion_pct').value;
+        const sPct   = document.getElementById('static_pct').value;
+
+        // ── Helpers ──────────────────────────────────────────────────────
+        const th = (text) => ({ text, bold: true, fillColor: TEAL, color: '#fff',
+                                 fontSize: 7, margin: [2, 3, 2, 3] });
+        const td = (text, opts = {}) => ({ text: String(text), fontSize: 7,
+                                           margin: [2, 2, 2, 2], ...opts });
+
+        // ── KPI row helper (3 cards per row) ─────────────────────────────
+        const kpiCard = (val, unit, label) => ({
+            stack: [
+                { text: String(val), fontSize: 15, bold: true, color: TEAL, alignment: 'center' },
+                { text: unit,  fontSize: 6.5, color: '#666', alignment: 'center' },
+                { text: label, fontSize: 6.5, bold: true, color: '#444', alignment: 'center' },
+            ],
+            width: '*',
+        });
+
+        const kpiRow = (cards) => ({
+            columns: cards,
+            columnGap: 6,
+            margin: [0, 2, 0, 2],
+        });
+
+        // ── Component breakdown table body (values in mAh over lifetime) ──
+        const rptLifetimeH = result.battery_life_days * 24;
+        const toMah = mA => ((mA || 0) * rptLifetimeH).toFixed(1);
+
+        const breakdownBody = [
+            [ th(''), th('Component'), th('mAh'), th('%') ],
+        ];
+        GROUPS.forEach(g => {
+            const gMah = toMah(result.group_currents_ma[g.key]);
+            const gPct = totalUa > 0
+                ? ((result.group_currents_ma[g.key] || 0) * 1000 / totalUa * 100).toFixed(1) : '0.0';
+            breakdownBody.push([
+                { text: '', fillColor: '#e4f4f7' },
+                { text: g.label, bold: true, fontSize: 7.5, fillColor: '#e4f4f7' },
+                td(gMah,  { alignment: 'right', bold: true, fillColor: '#e4f4f7' }),
+                td(`${gPct}%`, { alignment: 'right', bold: true, fillColor: '#e4f4f7' }),
+            ]);
+            g.components.forEach(c => {
+                const cMah = toMah(result.components_ma[c.key]);
+                const pct  = totalUa > 0
+                    ? ((result.components_ma[c.key] || 0) * 1000 / totalUa * 100).toFixed(1) : '0.0';
+                breakdownBody.push([
+                    td(''),
+                    td(`   ${c.label}`),
+                    td(cMah, { alignment: 'right' }),
+                    td(`${pct}%`, { alignment: 'right' }),
+                ]);
+            });
+        });
+        breakdownBody.push([
+            td(''),
+            { text: 'Total', bold: true, fontSize: 7, margin: [2,2,2,2] },
+            td(result.battery.capacity_mah.toFixed(1), { alignment: 'right', bold: true }),
+            td('100%', { alignment: 'right', bold: true }),
+        ]);
+
+        // ── Geoloc config block ───────────────────────────────────────────
+        const geoConfigBlock = [];
+        if (window.deviceConfig && Object.keys(window.deviceConfig).length > 0) {
+            const cfg  = window.deviceConfig;
+            const keys = ['geoloc_motion_period','geoloc_static_period',
+                          'geoloc_gbe_profile0_techno','geoloc_gbe_profile1_techno','geoloc_gbe_profile2_techno'];
+            const rows = keys.filter(k => cfg[k] !== undefined)
+                             .map(k => [ { text: k, bold: true, fontSize: 7 }, td(cfg[k]) ]);
+            if (rows.length) {
+                geoConfigBlock.push(
+                    { text: 'Geolocation Configuration', style: 'h2' },
+                    { table: { widths: ['auto', '*'], body: rows },
+                      layout: 'lightHorizontalLines', margin: [0, 0, 0, 8] }
+                );
+            }
+        }
+
+        // ── CPU statistics block ──────────────────────────────────────────
+        const cpuStatsBlock = [];
+        {
+            const lifeDays  = result.battery_life_days;
+            const lifetimeH = lifeDays * 24;
+            const hbPeriod  = parseFloat(document.getElementById('heartbeat_period_s').value) || 0;
+            const hbPerDay  = hbPeriod > 0 ? 86400 / hbPeriod : 0;
+            const stPeriod  = parseFloat(document.getElementById('status_period_s').value) || 0;
+            const stPerDay  = stPeriod > 0 ? 86400 / stPeriod : 0;
+            const cpuMah    = ((result.group_currents_ma.cpu || 0) * lifetimeH).toFixed(1);
+
+            const msgRow = (label, period, perDay, total) => period <= 0
+                ? [ td(label), td('Disabled', { color: '#aaa' }), td('—', { alignment: 'right' }), td('—', { alignment: 'right' }) ]
+                : [ td(label), td(`${period} s`), td(fmt(perDay) + ' / day', { alignment: 'right' }), td(fmtI(total) + ' total', { alignment: 'right' }) ];
+
+            cpuStatsBlock.push(
+                { text: 'General CPU Statistics', style: 'h2' },
+                { table: {
+                    headerRows: 1,
+                    widths: ['*', 'auto', 'auto', 'auto'],
+                    body: [
+                        ['Message type','Period','Rate','Lifetime total'].map(th),
+                        msgRow('Heartbeat',      hbPeriod, hbPerDay, Math.round(hbPerDay * lifeDays)),
+                        msgRow('Status message', stPeriod, stPerDay, Math.round(stPerDay * lifeDays)),
+                    ]
+                  }, layout: 'lightHorizontalLines', margin: [0, 0, 0, 4] },
+                { text: `CPU & System total: ${cpuMah} mAh`, fontSize: 8, color: '#008293', bold: true, margin: [0, 0, 0, 8] }
+            );
+        }
+
+        // ── Geoloc statistics block ───────────────────────────────────────
+        const geoStatsBlock = [];
+        if (geoData) {
+            geoStatsBlock.push({ text: 'Geolocation Statistics', style: 'h2' });
+            geoData.stats.forEach(ps => {
+                const header = ['Technology','Mode','Run prob.','Fail prob.',
+                                'Runs/day','Success/day','Fail/day','Total (lifetime)'].map(th);
+                const rows   = ps.slots.map(s => {
+                    const mode = s.isFirst ? 'First slot' : (s.alwaysDone ? 'Always Done' : 'Conditional');
+                    return [
+                        td(s.technoName),
+                        td(mode),
+                        td(`${(s.runProb * 100).toFixed(1)}%`, { alignment: 'right' }),
+                        td(`${s.failPct.toFixed(1)}%`,         { alignment: 'right' }),
+                        td(fmt(s.runsPerDay),                  { alignment: 'right' }),
+                        td(fmt(s.successesPerDay),             { alignment: 'right' }),
+                        td(fmt(s.failuresPerDay),              { alignment: 'right' }),
+                        td(fmtI(s.runsPerDay * result.battery_life_days), { alignment: 'right' }),
+                    ];
+                });
+                geoStatsBlock.push(
+                    { text: `Profile ${ps.profileIndex}  —  ${fmt(ps.triggersPerDay)} triggers / day`,
+                      style: 'h3' },
+                    { table: { headerRows: 1, widths: Array(8).fill('*'),
+                               body: [header, ...rows] },
+                      layout: 'lightHorizontalLines', margin: [0, 0, 0, 8] }
+                );
+            });
+        }
+
+        // ── pdfmake document definition ───────────────────────────────────
+        const docDef = {
+            pageSize:    'A4',
+            pageMargins: [36, 32, 36, 32],
+
+            styles: {
+                h1: { fontSize: 17, bold: true, color: TEAL, margin: [0, 0, 0, 3] },
+                h2: { fontSize: 10.5, bold: true, color: TEAL, margin: [0, 12, 0, 4],
+                      decoration: 'underline', decorationColor: TEAL },
+                h3: { fontSize: 9, bold: true, color: TEAL, margin: [0, 6, 0, 3] },
+                meta: { fontSize: 8, color: '#666', margin: [0, 0, 0, 10] },
+                disclaimer: { fontSize: 7, color: '#aaa', italics: true, margin: [0, 12, 0, 0] },
+            },
+
+            defaultStyle: { fontSize: 8 },
+
+            content: [
+                // ── Header ──────────────────────────────────────────────
+                { text: 'Battery Life Estimation Report', style: 'h1' },
+                { text: `Generated: ${now}   |   Product: ${productName}   |   Config: ${configFile}`,
+                  style: 'meta' },
+
+                // ── Configuration ────────────────────────────────────────
+                { text: 'Configuration', style: 'h2' },
+                {
+                    table: {
+                        widths: ['auto', '*', 'auto', '*'],
+                        body: [
+                            [ { text:'Product', bold:true, fontSize:7 },          td(productName),
+                              { text:'Battery capacity', bold:true, fontSize:7 }, td(`${input.battery_capacity_mah} mAh`) ],
+                            [ { text:'Self-discharge', bold:true, fontSize:7 },   td(`${input.annual_discharge_pct} %/yr`),
+                              { text:'LoRa SF', bold:true, fontSize:7 },           td(`SF${input.sf}`) ],
+                            [ { text:'TX power', bold:true, fontSize:7 },         td(input.tx_power.replace(/_/g,' ').trim()),
+                              { text:'Motion / Static', bold:true, fontSize:7 },  td(`${mPct}% / ${sPct}%`) ],
+                        ],
+                    },
+                    layout: 'lightHorizontalLines',
+                    margin: [0, 0, 0, 6],
+                },
+
+                // ── Geoloc config ────────────────────────────────────────
+                ...geoConfigBlock,
+
+                // ── KPI cards ────────────────────────────────────────────
+                { text: 'Results', style: 'h2' },
+                kpiRow([
+                    kpiCard(result.battery_life_days.toLocaleString(), 'days',   'Battery Life'),
+                    kpiCard((result.battery_life_days/365).toFixed(2), 'years',  'Battery Life'),
+                    kpiCard(Math.round(result.battery.capacity_mah),   'mAh',    'Capacity'),
+                    kpiCard(result.battery.annual_discharge_mah,       'mAh/yr', 'Self-Discharge'),
+                ]),
+
+                // ── Breakdown + chart ─────────────────────────────────────
+                {
+                    columns: [
+                        {
+                            width: '*',
+                            stack: [
+                                { text: 'Component Breakdown', style: 'h3' },
+                                { table: { headerRows: 1,
+                                           widths: [6, '*', 'auto', 'auto'],
+                                           body: breakdownBody },
+                                  layout: 'lightHorizontalLines' },
+                            ],
+                        },
+                        {
+                            width: 145,
+                            stack: [
+                                { text: 'Power Distribution', style: 'h3' },
+                                { image: chartImg, width: 145, height: 145 },
+                            ],
+                        },
+                    ],
+                    columnGap: 12,
+                    margin: [0, 4, 0, 0],
+                },
+
+                // ── CPU statistics ────────────────────────────────────────
+                ...cpuStatsBlock,
+
+                // ── Geoloc statistics ─────────────────────────────────────
+                ...geoStatsBlock,
+
+                // ── Disclaimer ────────────────────────────────────────────
+                { text: 'Results are estimates. Actual battery life may differ due to environmental conditions, temperature, and duty-cycle variability.',
+                  style: 'disclaimer' },
+            ],
+        };
+
+        // ── Trigger download ─────────────────────────────────────────────
+        const safeName = (configFile || 'manual').replace(/\.[^.]+$/, '').replace(/[^a-z0-9_\-]/gi, '_');
+        const filename  = `battery_report_${safeName}.pdf`;
+
+        const btn = document.querySelector('button[onclick="generateReport()"]');
+        if (btn) { btn.textContent = 'Generating…'; btn.disabled = true; }
+
+        try {
+            pdfMake.createPdf(docDef).getBlob(blob => {
+                const url = URL.createObjectURL(blob);
+                const a   = document.createElement('a');
+                a.href     = url;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                setTimeout(() => URL.revokeObjectURL(url), 2000);
+                if (btn) { btn.textContent = 'Generate Report'; btn.disabled = false; }
+            });
+        } catch (err) {
+            if (btn) { btn.textContent = 'Generate Report'; btn.disabled = false; }
+            alert('PDF generation failed: ' + err.message);
+        }
     }
 
 </script>
