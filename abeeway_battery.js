@@ -26,16 +26,17 @@ let HW = {
     lora_tx_19dbm_current_ma:   85,
 
     // GNSS / GPS
-    gps_active_current_ma:      22,
+    gnss_active_current_ma:     30,    // GNSS chipset active current (standalone fix)
+    gps_active_current_ma:      22,    // kept for AGPS (assisted mode)
     gps_standby_current_ma:     0.05,
 
     // WiFi
     wifi_scan_current_ma:       11.6,
     wifi_scan_duration_s:       9,
 
-    // BLE scan (geolocation)
-    ble_scan_current_ma:        10,
-    ble_scan_duration_s:        3,
+    // BLE scan (geolocation) — current measured at 10.12 mA
+    ble_scan_current_ma:        10.12,
+    ble_scan_duration_s:        3,     // fallback default; profile-based path uses per-scan durations
 
     // Monitoring wakeup
     monitoring_current_ma:      5,
@@ -228,19 +229,12 @@ function calculate_lora_current(sf, tx_power, payl_len, nof_msg_per_day) {
     return (total_energy / HW.supply_voltage) * (nof_msg_per_day / (24 * 3600));
 }
 
-function calculate_gps_current(gps_ttff, gps_conv_time, nof_msg_per_day) {
-    const t_cold = Math.min(gps_ttff + gps_conv_time, 300);
-
-    const i_cold_only =
-        t_cold * HW.gps_active_current_ma * nof_msg_per_day / (24 * 3600);
-
-    const i_hot = (
-        t_cold * HW.gps_active_current_ma +
-        (nof_msg_per_day - 1) * gps_conv_time * HW.gps_active_current_ma +
-        (24 * 3600 - gps_conv_time * nof_msg_per_day) * HW.gps_standby_current_ma
-    ) / (24 * 3600);
-
-    return Math.min(i_cold_only, i_hot);
+/**
+ * GNSS current — manual mode fallback (no profile, no failure model).
+ * Uses TTFF + convergence as the active window per fix.
+ */
+function calculate_gps_current(ttff, conv_time, nof_msg_per_day) {
+    return HW.gnss_active_current_ma * (ttff + conv_time) * nof_msg_per_day / (24 * 3600);
 }
 
 function calculate_agps_current(agps_on_time, nof_msg_per_day) {
@@ -251,8 +245,15 @@ function calculate_wifi_current(nof_msg_per_day) {
     return HW.wifi_scan_duration_s * HW.wifi_scan_current_ma * nof_msg_per_day / (24 * 3600);
 }
 
-function calculate_ble_current(nof_msg_per_day) {
-    return HW.ble_scan_duration_s * HW.ble_scan_current_ma * nof_msg_per_day / (24 * 3600);
+/**
+ * BLE geolocation scan current.
+ * scan_duration_s: explicit scan window in seconds; falls back to HW default when omitted.
+ */
+function calculate_ble_current(nof_msg_per_day, scan_duration_s) {
+    const dur = (scan_duration_s !== undefined && scan_duration_s > 0)
+        ? scan_duration_s
+        : HW.ble_scan_duration_s;
+    return dur * HW.ble_scan_current_ma * nof_msg_per_day / (24 * 3600);
 }
 
 function calculate_scancollection_current(nof_msg_per_day, tech) {
@@ -320,36 +321,53 @@ function calculate_recovery_beacon_current(beacon_interval_min, sf, tx_power) {
  * ──────────────────────────────────────────────────────────────── */
 function calculate_battery_life_time(input) {
 
-    // LoRa currents
+    // Network usage factors (0–1) — scale LoRa TX and Cellular currents
+    const lora_factor     = input.net_usage_lora_pct     !== undefined ? input.net_usage_lora_pct     / 100 : 1.0;
+    const cellular_factor = input.net_usage_cellular_pct !== undefined ? input.net_usage_cellular_pct / 100 : 1.0;
+
+    // LoRa currents (scaled by lora_factor)
     const custom_msg_lora_current =
-        calculate_lora_current(input.sf, input.tx_power, input.custom_msg.payl_len, input.custom_msg.nof_msg_per_day);
+        calculate_lora_current(input.sf, input.tx_power, input.custom_msg.payl_len, input.custom_msg.nof_msg_per_day) * lora_factor;
 
     const heartbeat_lora_current =
-        calculate_lora_current(input.sf, input.tx_power, HEARTBEAT_PAYL_LEN, input.heartbeat.nof_msg_per_day);
+        calculate_lora_current(input.sf, input.tx_power, HEARTBEAT_PAYL_LEN, input.heartbeat.nof_msg_per_day) * lora_factor;
 
     const status_lora_current =
-        calculate_lora_current(input.sf, input.tx_power, STATUS_PAYL_LEN, input.status_msg.nof_msg_per_day);
+        calculate_lora_current(input.sf, input.tx_power, STATUS_PAYL_LEN, input.status_msg.nof_msg_per_day) * lora_factor;
 
     const gps_lora_current =
-        calculate_lora_current(input.sf, input.tx_power, GPS_PAYL_LEN, input.gps.nof_msg_per_day);
+        calculate_lora_current(input.sf, input.tx_power, GPS_PAYL_LEN, input.gps.nof_msg_per_day) * lora_factor;
 
     const agps_lora_current = calculate_lora_current(
         input.sf, input.tx_power,
         AGPS_MIN_PAYL_LEN + (input.agps.nof_satellites * AGPS_ADDITIONAL_SAT_PAYL_LEN),
         input.agps.nof_msg_per_day
-    );
+    ) * lora_factor;
 
     const wifi_lora_current = calculate_lora_current(
         input.sf, input.tx_power,
         WIFI_MIN_PAYL_LEN + (input.wifi.nof_bssid * WIFI_ADDITIONAL_BSSID_PAYL_LEN),
         input.wifi.nof_msg_per_day
-    );
+    ) * lora_factor;
 
-    const ble_lora_current = calculate_lora_current(
-        input.sf, input.tx_power,
-        BLE_MIN_PAYL_LEN + (input.ble.nof_beaconid * BLE_ADDITIONAL_BSSID_PAYL_LEN),
-        input.ble.nof_msg_per_day
-    );
+    // BLE geoloc LoRa uplinks — BLE Scan 1 and BLE Scan 2 tracked separately
+    const ble1_lora = (input.ble.ble1
+        ? calculate_lora_current(
+              input.sf, input.tx_power,
+              BLE_MIN_PAYL_LEN + input.ble.ble1.nof_beaconid * BLE_ADDITIONAL_BSSID_PAYL_LEN,
+              input.ble.ble1.nof_msg_per_day)
+        : calculate_lora_current(
+              input.sf, input.tx_power,
+              BLE_MIN_PAYL_LEN + input.ble.nof_beaconid * BLE_ADDITIONAL_BSSID_PAYL_LEN,
+              input.ble.nof_msg_per_day)
+    ) * lora_factor;
+    const ble2_lora = input.ble.ble2
+        ? calculate_lora_current(
+              input.sf, input.tx_power,
+              BLE_MIN_PAYL_LEN + input.ble.ble2.nof_beaconid * BLE_ADDITIONAL_BSSID_PAYL_LEN,
+              input.ble.ble2.nof_msg_per_day) * lora_factor
+        : 0;
+    const ble_lora_current = ble1_lora + ble2_lora;
 
     // Scan collection (fragmented)
     const scancoll_unit_len = (input.scan_collection.tech === 'BLE' && input.scan_collection.idtype === 'ID')
@@ -360,7 +378,7 @@ function calculate_battery_life_time(input) {
     const nof_id_last_msg    = input.scan_collection.nof_id % nof_id_in_full_msg;
     const nof_full_fragments = Math.floor(input.scan_collection.nof_id / nof_id_in_full_msg);
 
-    const scan_collection_lora_current =
+    const scan_collection_lora_current = (
         calculate_lora_current(
             input.sf, input.tx_power,
             SCANCOLL_MIN_PAYL_LEN + nof_id_in_full_msg * scancoll_unit_len,
@@ -370,13 +388,25 @@ function calculate_battery_life_time(input) {
             input.sf, input.tx_power,
             SCANCOLL_MIN_PAYL_LEN + nof_id_last_msg * scancoll_unit_len,
             input.scan_collection.nof_msg_per_day
-        );
+        )
+    ) * lora_factor;
 
     // Geolocation HW currents
-    const gps_geoloc_current  = calculate_gps_current(input.gps.ttff, input.gps.conv_time, input.gps.nof_msg_per_day);
+    // Profile mode: gnss_current_ma is pre-computed (failure model + motion/static split).
+    // Manual mode: fall back to simple formula.
+    const gps_geoloc_current  = input.gps.gnss_current_ma !== undefined
+        ? input.gps.gnss_current_ma
+        : calculate_gps_current(input.gps.ttff, input.gps.conv_time, input.gps.nof_msg_per_day);
     const agps_geoloc_current = calculate_agps_current(input.agps.on_time, input.agps.nof_msg_per_day);
     const wifi_geoloc_current = calculate_wifi_current(input.wifi.nof_msg_per_day);
-    const ble_geoloc_current  = calculate_ble_current(input.ble.nof_msg_per_day);
+    // BLE geoloc HW scan current — BLE Scan 1 and BLE Scan 2 tracked separately
+    const ble1_hw = input.ble.ble1
+        ? calculate_ble_current(input.ble.ble1.nof_msg_per_day, input.ble.ble1.scan_duration_s)
+        : calculate_ble_current(input.ble.nof_msg_per_day);
+    const ble2_hw = input.ble.ble2
+        ? calculate_ble_current(input.ble.ble2.nof_msg_per_day, input.ble.ble2.scan_duration_s)
+        : 0;
+    const ble_geoloc_current = ble1_hw + ble2_hw;
 
     // BLE custom usage
     const custom_ble_usage_current = calculate_custom_ble_usage_current(
@@ -392,12 +422,12 @@ function calculate_battery_life_time(input) {
         input.monitoring.period_s, input.monitoring.current_ma, input.monitoring.window_ms
     );
 
-    // Cellular
+    // Cellular (scaled by cellular_factor)
     const cellular_current = calculate_cellular_current(
         input.cellular.tech,
         input.cellular.sessions_per_day,
         input.cellular.session_duration_s
-    );
+    ) * cellular_factor;
 
     // Recovery beacon
     const recovery_beacon_current = calculate_recovery_beacon_current(
@@ -437,7 +467,9 @@ function calculate_battery_life_time(input) {
         geoloc_gps:           gps_geoloc_current  + gps_lora_current,
         geoloc_agps:          agps_geoloc_current + agps_lora_current,
         geoloc_wifi:          wifi_geoloc_current + wifi_lora_current,
-        geoloc_ble:           ble_geoloc_current  + ble_lora_current,
+        geoloc_ble:           ble_geoloc_current  + ble_lora_current,  // combined (manual/fallback)
+        geoloc_ble1:          ble1_hw + ble1_lora,                     // BLE Scan 1 (profile mode)
+        geoloc_ble2:          ble2_hw + ble2_lora,                     // BLE Scan 2 (0 if not split)
         cellular:             cellular_current,
         lora_heartbeat:       heartbeat_lora_current,
         lora_status_msg:      status_lora_current,
@@ -457,6 +489,7 @@ function calculate_battery_life_time(input) {
         geolocation:     geoloc_total,
         cellular:        cellular_total,
         lora:            lora_total,
+        network:         cellular_total + lora_total,
         recovery_beacon: beacon_total,
     };
 

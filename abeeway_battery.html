@@ -33,6 +33,35 @@
             box-sizing: border-box;
             min-width: 200px;
         }
+        .param-box {
+            flex: 1 1 130px;
+            min-width: 120px;
+            max-width: 200px;
+            background: #f9fdfe;
+            border: 1px solid #cde8ed;
+            border-radius: 5px;
+            padding: 7px 10px 6px;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+        .param-box label {
+            display: block;
+            font-size: .72rem;
+            color: #555;
+            font-weight: bold;
+            line-height: 1.3;
+            flex: 1;
+        }
+        .param-box input, .param-box select {
+            width: 100%;
+            box-sizing: border-box;
+            font-size: .82rem;
+            padding: 2px 4px;
+            margin-top: 5px;
+            flex-shrink: 0;
+        }
         .flexitem1 {
             flex-flow: 1 1 1;
             padding: 4px;
@@ -90,24 +119,24 @@
         /* Disk analyser layout */
         .diskanalyzer-layout {
             display: flex;
-            flex-flow: row wrap;
+            flex-direction: column;
+            align-items: center;
             gap: 16px;
             margin-bottom: 14px;
-            align-items: flex-start;
         }
         .chart-box-sunburst {
             border: 1px solid #ccc;
             border-radius: 6px;
-            padding: 12px;
+            padding: 12px 8px 8px;
             background: #fff;
-            flex: 0 0 auto;
+            text-align: center;
+            width: fit-content;
         }
-        .chart-box-sunburst h3 { color: #008293; font-size: .9rem; margin-bottom: 8px; }
+        .chart-box-sunburst h3 { color: #008293; font-size: .95rem; margin-bottom: 6px; }
 
         /* Legend table */
         #legend-box {
-            flex: 1;
-            min-width: 280px;
+            width: 100%;
             border: 1px solid #ccc;
             border-radius: 6px;
             background: #fff;
@@ -123,7 +152,7 @@
         .legend-table {
             width: 100%;
             border-collapse: collapse;
-            font-size: .82rem;
+            font-size: .86rem;
         }
         .legend-table th {
             background: #f5f5f5;
@@ -168,6 +197,21 @@
             height: 7px;
             border-radius: 3px;
         }
+
+        /* ── Collapsible breakdown rows ─────────────────── */
+        .group-row { cursor: pointer; user-select: none; }
+        .group-row:hover td { background: #f0f8f9; }
+        .group-chevron {
+            display: inline-block;
+            width: .9rem;
+            font-size: .65rem;
+            color: #008293;
+            transition: transform .18s ease;
+            vertical-align: middle;
+        }
+        .group-row.expanded .group-chevron { transform: rotate(90deg); }
+        .group-row td:first-child { display: flex; align-items: center; gap: 2px; }
+        .legend-table tr.group-row td { display: table-cell; }
 
         /* ── Geolocation profile styles ─────────────────── */
         /* Profiles container: full-width flex row of profile cards */
@@ -241,6 +285,96 @@
             font-size:.77rem; color:#888; border-top:1px solid #ddd;
             padding:5px 9px; text-align:left;
         }
+
+        /* ── TX Strategy (lorawan_s1_tx_strategy) ──────────────────── */
+        .dr-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin: 4px 0 6px;
+        }
+        .dr-chip {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-width: 54px;
+            background: #f5fbfc;
+            border: 1px solid #cce8ec;
+            border-radius: 4px;
+            padding: 5px 6px 4px;
+        }
+        .dr-chip label {
+            font-size: .72rem;
+            font-weight: bold;
+            color: #008293;
+            margin-bottom: 3px;
+            user-select: none;
+        }
+        /* Read-only indicator: disabled checkbox styled as a teal/grey dot */
+        .dr-chip input[type="checkbox"]:disabled {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 13px;
+            height: 13px;
+            border-radius: 50%;
+            border: 2px solid #ccc;
+            background: #eee;
+            cursor: default;
+            margin: 0;
+            flex-shrink: 0;
+            display: block;
+        }
+        .dr-chip input[type="checkbox"]:disabled:checked {
+            background: #008293;
+            border-color: #008293;
+        }
+        .dr-chip input[type="number"] {
+            width: 46px;
+            text-align: center;
+            font-size: .8rem;
+            padding: 1px 2px;
+            margin: 0;
+            margin-bottom: 0;
+        }
+        .dr-chip .dr-prob {
+            font-size: .68rem;
+            color: #008293;
+            margin-top: 3px;
+            font-weight: bold;
+            min-height: 1em;
+        }
+        .dr-chip.dr-chip-inactive label { color: #bbb; }
+        .dr-chip.dr-chip-inactive { border-color: #e8e8e8; background: #f8f8f8; }
+        .dr-section-disabled { opacity: .4; pointer-events: none; }
+        .adr-bar-wrap {
+            height: 7px;
+            width: 100%;
+            background: #e0f7fa;
+            border-radius: 4px;
+            margin-top: 3px;
+            overflow: hidden;
+        }
+        .adr-bar-fill {
+            height: 7px;
+            background: #008293;
+            border-radius: 4px;
+            transition: width .2s;
+        }
+        .tx-strat-raw-row {
+            font-size: .75rem;
+            color: #666;
+            margin-top: 8px;
+            padding-top: 6px;
+            border-top: 1px solid #eee;
+        }
+        .tx-strat-sub-title {
+            font-size: .73rem;
+            font-weight: bold;
+            color: #008293;
+            margin-bottom: 4px;
+            text-transform: uppercase;
+            letter-spacing: .03em;
+        }
     </style>
 </head>
 <body>
@@ -311,28 +445,36 @@
     ═════════════════════════════════════════════ -->
     <fieldset>
         <legend>General Consumptions</legend>
-        <div class="flexcontainer">
+        <div style="display:flex; flex-flow:row wrap; gap:8px; align-items:stretch;">
 
-            <div class="flexitem">
-                <label for="cpu_idle_ua">CPU idle current [µA]:</label><br />
-                <input type="number" min="0" step="0.1" id="cpu_idle_ua" value="8"><br />
-
-                <label for="heartbeat_period_s">Heartbeat period [s] (0 = disabled):</label><br />
-                <input type="number" min="0" id="heartbeat_period_s" value="3600"><br />
-
-                <label for="status_period_s">Status message period [s] (0 = disabled):</label><br />
-                <input type="number" min="0" id="status_period_s" value="3600"><br />
+            <div class="param-box">
+                <label for="cpu_idle_ua">CPU idle [µA]</label>
+                <input type="number" min="0" step="0.1" id="cpu_idle_ua" value="8">
             </div>
 
-            <div class="flexitem">
-                <label for="monitoring_period_s">Monitoring period [s]:</label><br />
-                <input type="number" min="1" id="monitoring_period_s" value="300"><br />
+            <div class="param-box">
+                <label for="heartbeat_period_s">Heartbeat period [s]<br><span style="font-weight:normal;color:#888;">(0 = disabled)</span></label>
+                <input type="number" min="0" id="heartbeat_period_s" value="3600">
+            </div>
 
-                <label for="monitoring_current_ma">Monitoring active current [mA]:</label><br />
-                <input type="number" min="0" step="0.1" id="monitoring_current_ma" value="5"><br />
+            <div class="param-box">
+                <label for="status_period_s">Status msg period [s]<br><span style="font-weight:normal;color:#888;">(0 = disabled)</span></label>
+                <input type="number" min="0" id="status_period_s" value="3600">
+            </div>
 
-                <label for="monitoring_window_ms">Monitoring window [ms]:</label><br />
-                <input type="number" min="0" id="monitoring_window_ms" value="10"><br />
+            <div class="param-box">
+                <label for="monitoring_period_s">Monitoring period [s]</label>
+                <input type="number" min="1" id="monitoring_period_s" value="300">
+            </div>
+
+            <div class="param-box">
+                <label for="monitoring_current_ma">Monitoring current [mA]</label>
+                <input type="number" min="0" step="0.1" id="monitoring_current_ma" value="5">
+            </div>
+
+            <div class="param-box">
+                <label for="monitoring_window_ms">Monitoring window [ms]</label>
+                <input type="number" min="0" id="monitoring_window_ms" value="10">
             </div>
 
         </div>
@@ -419,84 +561,180 @@
     </fieldset>
 
     <!-- ════════════════════════════════════════════
-         SECTION 4 — Cellular Communication
-    ═════════════════════════════════════════════ -->
-    <fieldset id="cellular_fieldset">
-        <legend>Cellular Communication Consumption</legend>
-        <p id="cellular_locked_notice" style="color:#999; font-style:italic; margin:0 0 8px;">
-            Only available on the <strong>Combo Tracker</strong>. Select it in General Settings to enable.
-        </p>
-        <div class="flexcontainer" id="cellular_inputs">
-
-            <fieldset class="flexitem">
-                <legend>Technology</legend>
-                <label for="cellular_tech">Technology:</label><br />
-                <select id="cellular_tech">
-                    <option value="">Disabled</option>
-                    <option value="ltem">LTE-M</option>
-                    <option value="nbiot">NB-IoT</option>
-                </select><br />
-                <small style="color:#666;">LTE-M: TX 200 mA / RX 7 mA &nbsp;·&nbsp; NB-IoT: TX 220 mA / RX 5 mA</small>
-            </fieldset>
-
-            <fieldset class="flexitem">
-                <legend>Session Parameters</legend>
-                <label for="cellular_sessions_per_day">Sessions / day:</label><br />
-                <input type="number" min="0" id="cellular_sessions_per_day" value="24"><br />
-                <label for="cellular_session_duration_s">Session duration [s]:</label><br />
-                <input type="number" min="0" id="cellular_session_duration_s" value="5">
-            </fieldset>
-
-        </div>
-    </fieldset>
-
-    <!-- ════════════════════════════════════════════
-         SECTION 5 — LoRa Communication
+         SECTION 4 — Network
     ═════════════════════════════════════════════ -->
     <fieldset>
-        <legend>LoRa Communication Consumption</legend>
-        <div class="flexcontainer">
+        <legend>Network</legend>
 
-            <fieldset class="flexitem">
-                <legend>Radio Parameters</legend>
-                <label for="sf">Spreading Factor:</label><br />
-                <select id="sf">
-                    <option value="7">SF7</option>
-                    <option value="8">SF8</option>
-                    <option value="9">SF9</option>
-                    <option value="10" selected>SF10</option>
-                    <option value="11">SF11</option>
-                    <option value="12">SF12</option>
-                </select><br />
-                <label for="tx_power">TX Power:</label><br />
-                <select id="tx_power">
-                    <option value="_14dBm_">14 dBm</option>
-                    <option value="_17dBm_">17 dBm</option>
-                    <option value="_19dBm_" selected>19 dBm</option>
-                </select>
+        <!-- ── Network Selection & Usage Split ── -->
+        <fieldset>
+            <legend>Network Selection</legend>
+            <div style="display:flex; flex-flow:row wrap; gap:8px; align-items:stretch;">
+
+                <div class="param-box" style="max-width:260px; flex-basis:220px;">
+                    <label for="net_selection">Network mode<br><span style="font-weight:normal;color:#888;">(net_selection — auto-filled from config)</span></label>
+                    <select id="net_selection" onchange="onNetSelectionChange()" style="width:100%; box-sizing:border-box; margin-top:5px;">
+                        <option value="0">0 — LoRa only</option>
+                        <option value="1">1 — Cellular only</option>
+                        <option value="2" selected>2 — LoRa fallback Cellular</option>
+                        <option value="3">3 — Cellular fallback LoRa</option>
+                    </select>
+                </div>
+
+                <div class="param-box">
+                    <label for="net_usage_lora_pct">LoRa usage [%]<br><span style="font-weight:normal;color:#888;">over device lifetime</span></label>
+                    <input type="number" min="0" max="100" id="net_usage_lora_pct" value="80"
+                           oninput="onLoraNetPctChange(this)">
+                </div>
+
+                <div class="param-box">
+                    <label for="net_usage_cellular_pct">Cellular usage [%]<br><span style="font-weight:normal;color:#888;">over device lifetime</span></label>
+                    <input type="number" min="0" max="100" id="net_usage_cellular_pct" value="20"
+                           oninput="onCellularNetPctChange(this)">
+                </div>
+
+            </div>
+            <small style="color:#888; display:block; margin-top:6px;">LoRa + Cellular must sum to 100 %. Only TX currents are scaled; HW currents (GPS, WiFi, BLE) are unchanged.</small>
+        </fieldset>
+
+        <!-- ── Cellular sub-section ── -->
+        <fieldset id="cellular_fieldset" style="margin-top:8px;">
+            <legend>Cellular</legend>
+            <p id="cellular_locked_notice" style="color:#999; font-style:italic; margin:0 0 8px;">
+                Only available on the <strong>Combo Tracker</strong>. Select it in General Settings to enable.
+            </p>
+            <div class="flexcontainer" id="cellular_inputs">
+
+                <fieldset class="flexitem">
+                    <legend>Technology</legend>
+                    <label for="cellular_tech">Technology:</label><br />
+                    <select id="cellular_tech">
+                        <option value="">Disabled</option>
+                        <option value="ltem">LTE-M</option>
+                        <option value="nbiot">NB-IoT</option>
+                    </select><br />
+                    <small style="color:#666;">LTE-M: TX 200 mA / RX 7 mA &nbsp;·&nbsp; NB-IoT: TX 220 mA / RX 5 mA</small>
+                </fieldset>
+
+                <fieldset class="flexitem">
+                    <legend>Session Parameters</legend>
+                    <label for="cellular_sessions_per_day">Sessions / day:</label><br />
+                    <input type="number" min="0" id="cellular_sessions_per_day" value="24"><br />
+                    <label for="cellular_session_duration_s">Session duration [s]:</label><br />
+                    <input type="number" min="0" id="cellular_session_duration_s" value="5">
+                </fieldset>
+
+            </div>
+        </fieldset>
+
+        <!-- ── LoRa sub-section ── -->
+        <fieldset style="margin-top:8px;">
+            <legend>LoRa</legend>
+            <div class="flexcontainer">
+
+                <fieldset class="flexitem" style="max-width:180px;">
+                    <legend>Radio Parameters</legend>
+                    <input type="hidden" id="sf" value="10">
+                    <label for="tx_power">TX Power:</label><br />
+                    <select id="tx_power">
+                        <option value="_14dBm_">14 dBm</option>
+                        <option value="_17dBm_">17 dBm</option>
+                        <option value="_19dBm_" selected>19 dBm</option>
+                    </select>
+                </fieldset>
+
+            </div>
+
+            <!-- ── TX Strategy sub-section ── -->
+            <fieldset style="margin-top:8px;">
+                <legend>TX Strategy (lorawan_s1_tx_strategy)</legend>
+                <div class="flexcontainer">
+
+                    <!-- Byte 0 — Control Flags (read-only from config) -->
+                    <fieldset class="flexitem">
+                        <legend>Byte 0 — Control Flags</legend>
+                        <div style="margin-bottom:6px;">
+                            <label>
+                                <input type="checkbox" id="tx_strat_adr" disabled>
+                                <strong>Bit 0</strong> — ADR <small style="color:#666;">(static mode)</small>
+                            </label>
+                        </div>
+                        <div style="margin-bottom:6px;">
+                            <label>
+                                <input type="checkbox" id="tx_strat_dual_static" disabled>
+                                <strong>Bit 1</strong> — Dual TX <small style="color:#666;">(static mode)</small>
+                            </label>
+                        </div>
+                        <div style="margin-bottom:6px;">
+                            <label>
+                                <input type="checkbox" id="tx_strat_dual_motion" disabled>
+                                <strong>Bit 2</strong> — Dual TX <small style="color:#666;">(motion mode)</small>
+                            </label>
+                        </div>
+                        <div class="tx-strat-raw-row">
+                            Raw value: <code id="tx_strat_raw">—</code>
+                        </div>
+                    </fieldset>
+
+                    <!-- Byte 1 — TX1 Data Rate -->
+                    <fieldset class="flexitem" id="tx1_dr_fs">
+                        <legend>Byte 1 — TX1 Data Rate</legend>
+
+                        <!-- ADR sub-section: shown only when ADR bit is set -->
+                        <div id="tx1_adr_section" style="display:none;">
+                            <div class="tx-strat-sub-title">ADR — Static mode</div>
+                            <small style="color:#666; display:block; margin-bottom:5px;">
+                                Expected DR usage distribution (user input):
+                            </small>
+                            <div class="dr-grid" id="adr_pct_grid">
+                                <!-- built by JS -->
+                            </div>
+                            <div style="font-size:.75rem; color:#555; margin-top:3px;">
+                                Total: <span id="adr_pct_total" style="font-weight:bold;">100</span>%
+                                <span id="adr_pct_warn" style="color:#c00; display:none;"> ≠ 100%</span>
+                            </div>
+                            <hr style="margin:8px 0; border:none; border-top:1px solid #e8e8e8;">
+                        </div>
+
+                        <!-- TX1 DR: always visible; label changes with ADR state -->
+                        <div id="tx1_dr_section">
+                            <div class="tx-strat-sub-title" id="tx1_dr_section_label">TX1 DR — Static &amp; motion mode</div>
+                            <small style="color:#666; display:block; margin-bottom:4px;">
+                                Active DRs (from config):
+                            </small>
+                            <div class="dr-grid" id="tx1_dr_grid">
+                                <!-- built by JS -->
+                            </div>
+                            <div style="font-size:.75rem; color:#555; margin-top:3px;">
+                                Probability per DR: <span id="tx1_dr_prob" style="font-weight:bold; color:#008293;">—</span>
+                            </div>
+                        </div>
+                    </fieldset>
+
+                    <!-- Byte 2 — TX2 Data Rate (read-only from config) -->
+                    <fieldset class="flexitem" id="tx2_dr_fs">
+                        <legend>Byte 2 — TX2 Data Rate</legend>
+                        <div id="tx2_dr_body">
+                            <small style="color:#666; display:block; margin-bottom:4px;">
+                                Active DRs (from config):
+                            </small>
+                            <div class="dr-grid" id="tx2_dr_grid">
+                                <!-- built by JS -->
+                            </div>
+                            <div style="font-size:.75rem; color:#555; margin-top:3px;">
+                                Probability per DR: <span id="tx2_dr_prob" style="font-weight:bold; color:#008293;">—</span>
+                            </div>
+                        </div>
+                        <div id="tx2_locked_notice" style="display:none; color:#aaa; font-style:italic; font-size:.78rem; margin-top:4px;">
+                            Locked — dual TX disabled for both static &amp; motion modes.
+                        </div>
+                    </fieldset>
+
+                </div>
             </fieldset>
 
-            <fieldset class="flexitem">
-                <legend>Heartbeat &amp; Custom</legend>
-                <label>Heartbeat msgs/day:</label><br />
-                <input type="number" readonly id="lora_heartbeat_ro" style="background:#f5f5f5;"><br />
-                <label>Custom msgs/day:</label><br />
-                <input type="number" readonly id="lora_custom_ro" style="background:#f5f5f5;">
-            </fieldset>
+        </fieldset>
 
-            <fieldset class="flexitem">
-                <legend>Geolocation Uplinks</legend>
-                <label>GPS uplinks/day:</label><br />
-                <input type="number" readonly id="lora_gps_ro" style="background:#f5f5f5;"><br />
-                <label>AGPS uplinks/day:</label><br />
-                <input type="number" readonly id="lora_agps_ro" style="background:#f5f5f5;"><br />
-                <label>WiFi uplinks/day:</label><br />
-                <input type="number" readonly id="lora_wifi_ro" style="background:#f5f5f5;"><br />
-                <label>BLE uplinks/day:</label><br />
-                <input type="number" readonly id="lora_ble_ro" style="background:#f5f5f5;">
-            </fieldset>
-
-        </div>
     </fieldset>
 
     <!-- ════════════════════════════════════════════
@@ -590,13 +828,21 @@
                 </fieldset>
             </div>
 
+            <!-- ── Uplinks by Network Technology ─────────────────────────── -->
+            <div id="uplinks_stats_section" style="display:none; margin-bottom:14px;">
+                <fieldset>
+                    <legend>Uplinks by Network Technology</legend>
+                    <div id="uplinks_stats_content"></div>
+                </fieldset>
+            </div>
+
             <div class="diskanalyzer-layout">
                 <div class="chart-box-sunburst">
-                    <h3>Power Consumption — Disk Analyser</h3>
-                    <canvas id="sunburstChart" width="360" height="360"></canvas>
+                    <h3>Power Consumption by Group</h3>
+                    <canvas id="sunburstChart" width="700" height="480"></canvas>
                 </div>
                 <div id="legend-box">
-                    <h3>Consumption Breakdown</h3>
+                    <h3>Consumption Breakdown <small style="font-weight:normal;color:#888;font-size:.75rem;">(click a group to expand)</small></h3>
                     <table class="legend-table">
                         <thead>
                             <tr>
@@ -651,15 +897,28 @@
         const file   = event.target.files[0];
         const status = document.getElementById('config_status');
         if (!file) { status.textContent = ''; return; }
+
+        // Immediate feedback so the user sees a response right away
+        status.style.color = '#888';
+        status.textContent = 'Parsing…';
+
         const reader = new FileReader();
         reader.onload = function(e) {
-            window.deviceConfig     = parseDeviceConfig(e.target.result);
+            const cfg   = parseDeviceConfig(e.target.result);
+            const count = Object.keys(cfg).length;
+            window.deviceConfig       = cfg;
             window.lastConfigFileName = file.name;
-            const count = Object.keys(window.deviceConfig).length;
-            status.style.color = '#008293';
-            status.textContent = `Loaded: ${file.name} — ${count} parameter(s) parsed.`;
-            renderGeolocProfiles();
-            updateGeneralFromConfig(window.deviceConfig);
+
+            status.textContent = 'Updating interface…';
+
+            // Yield to the browser so it can paint the status message,
+            // then do the heavy DOM work (innerHTML rebuild + input updates).
+            setTimeout(() => {
+                renderGeolocProfiles();
+                updateGeneralFromConfig(cfg);
+                status.style.color = '#008293';
+                status.textContent = `Loaded: ${file.name} — ${count} parameter(s) parsed.`;
+            }, 0);
         };
         reader.onerror = function() {
             status.style.color = '#c00';
@@ -681,7 +940,154 @@
         setField('heartbeat_period_s',   parseFloat(cfg.lorawan_heartbeat_period));
         setField('status_period_s',      parseFloat(cfg.core_status_period));
         setField('monitoring_period_s',  parseFloat(cfg.core_monitoring_period));
-        syncLoraReadOnly();
+
+        if (cfg.net_selection !== undefined && !isNaN(parseInt(cfg.net_selection))) {
+            document.getElementById('net_selection').value = parseInt(cfg.net_selection);
+            onNetSelectionChange();
+        }
+
+        if (cfg.lorawan_s1_tx_strategy !== undefined) {
+            const raw = parseInt(cfg.lorawan_s1_tx_strategy);
+            if (!isNaN(raw)) setTxStrategyFromValue(raw);
+        }
+    }
+
+    /***********************************************************************
+     * TX Strategy — lorawan_s1_tx_strategy
+     *   24-bit value: Byte0 (flags) | Byte1 (TX1 DR mask) | Byte2 (TX2 DR mask)
+     *   All fields are read-only from the config file.
+     *   Only the ADR percentage distribution inputs are user-editable.
+     ***********************************************************************/
+
+    /** Build the DR chip grids on page load */
+    function initTxStrategyUI() {
+        // ADR percentage grid (DR0–DR7, equal distribution — user-editable)
+        const adrGrid = document.getElementById('adr_pct_grid');
+        for (let dr = 0; dr < 8; dr++) {
+            const chip = document.createElement('div');
+            chip.className = 'dr-chip';
+            chip.id = `adr_chip_${dr}`;
+            chip.innerHTML = `
+                <label for="adr_pct_${dr}">DR${dr}</label>
+                <input type="number" id="adr_pct_${dr}" min="0" max="100" step="0.1"
+                       value="12.5" oninput="onAdrPctChange()">
+                <div class="adr-bar-wrap"><div class="adr-bar-fill" id="adr_bar_${dr}" style="width:12.5%"></div></div>
+                <div class="dr-prob" id="adr_lbl_${dr}">12.5%</div>`;
+            adrGrid.appendChild(chip);
+        }
+
+        // TX1 DR indicators (DR0–DR7) — read-only disabled checkboxes styled as dots
+        const tx1Grid = document.getElementById('tx1_dr_grid');
+        for (let dr = 0; dr < 8; dr++) {
+            const chip = document.createElement('div');
+            chip.className = 'dr-chip dr-chip-inactive';
+            chip.id = `tx1_chip_${dr}`;
+            chip.innerHTML = `
+                <label for="tx1_dr_${dr}">DR${dr}</label>
+                <input type="checkbox" id="tx1_dr_${dr}" disabled>
+                <div class="dr-prob" id="tx1_prob_${dr}">—</div>`;
+            tx1Grid.appendChild(chip);
+        }
+
+        // TX2 DR indicators (DR0–DR7) — read-only disabled checkboxes styled as dots
+        const tx2Grid = document.getElementById('tx2_dr_grid');
+        for (let dr = 0; dr < 8; dr++) {
+            const chip = document.createElement('div');
+            chip.className = 'dr-chip dr-chip-inactive';
+            chip.id = `tx2_chip_${dr}`;
+            chip.innerHTML = `
+                <label for="tx2_dr_${dr}">DR${dr}</label>
+                <input type="checkbox" id="tx2_dr_${dr}" disabled>
+                <div class="dr-prob" id="tx2_prob_${dr}">—</div>`;
+            tx2Grid.appendChild(chip);
+        }
+
+        refreshTxStratUI();
+    }
+
+    /** Decode a 24-bit integer from config and populate all read-only fields */
+    function setTxStrategyFromValue(val) {
+        const byte0 = val & 0xFF;
+        const byte1 = (val >> 8)  & 0xFF;
+        const byte2 = (val >> 16) & 0xFF;
+
+        document.getElementById('tx_strat_adr').checked         = !!(byte0 & 0x01);
+        document.getElementById('tx_strat_dual_static').checked = !!(byte0 & 0x02);
+        document.getElementById('tx_strat_dual_motion').checked = !!(byte0 & 0x04);
+
+        for (let dr = 0; dr < 8; dr++) {
+            document.getElementById(`tx1_dr_${dr}`).checked = !!(byte1 & (1 << dr));
+            document.getElementById(`tx2_dr_${dr}`).checked = !!(byte2 & (1 << dr));
+        }
+
+        document.getElementById('tx_strat_raw').textContent = val;
+        refreshTxStratUI();
+    }
+
+    /** Called when any ADR percentage input changes (only editable field) */
+    function onAdrPctChange() {
+        let total = 0;
+        for (let dr = 0; dr < 8; dr++) {
+            const v = parseFloat(document.getElementById(`adr_pct_${dr}`).value) || 0;
+            total += v;
+        }
+        total = Math.round(total * 10) / 10;
+        document.getElementById('adr_pct_total').textContent = total;
+        document.getElementById('adr_pct_warn').style.display =
+            (Math.abs(total - 100) > 0.1) ? 'inline' : 'none';
+
+        for (let dr = 0; dr < 8; dr++) {
+            const v = parseFloat(document.getElementById(`adr_pct_${dr}`).value) || 0;
+            document.getElementById(`adr_bar_${dr}`).style.width = Math.min(v, 100) + '%';
+            document.getElementById(`adr_lbl_${dr}`).textContent = v + '%';
+        }
+    }
+
+    /** Update the equal-probability labels for a TX1 or TX2 DR indicator grid */
+    function updateDrProbabilities(prefix) {
+        let count = 0;
+        for (let dr = 0; dr < 8; dr++) {
+            if (document.getElementById(`${prefix}_dr_${dr}`).checked) count++;
+        }
+        const prob    = count > 0 ? Math.round(1000 / count) / 10 : 0;
+        const summary = count > 0 ? `${prob}%` : '—';
+        document.getElementById(`${prefix}_dr_prob`).textContent = summary;
+
+        for (let dr = 0; dr < 8; dr++) {
+            const active = document.getElementById(`${prefix}_dr_${dr}`).checked;
+            document.getElementById(`${prefix}_chip_${dr}`).className =
+                'dr-chip' + (active ? '' : ' dr-chip-inactive');
+            document.getElementById(`${prefix}_prob_${dr}`).textContent = active ? `${prob}%` : '—';
+        }
+    }
+
+    /** Refresh visibility and labels based on current flag state */
+    function refreshTxStratUI() {
+        const adrOn      = document.getElementById('tx_strat_adr').checked;
+        const dualStatic = document.getElementById('tx_strat_dual_static').checked;
+        const dualMotion = document.getElementById('tx_strat_dual_motion').checked;
+
+        // Byte 1 — ADR section visible only when ADR bit is set
+        document.getElementById('tx1_adr_section').style.display = adrOn ? 'block' : 'none';
+
+        // TX1 DR section always visible; label reflects which mode it governs
+        document.getElementById('tx1_dr_section_label').innerHTML = adrOn
+            ? 'TX1 DR — Motion mode'
+            : 'TX1 DR — Static &amp; motion mode';
+        updateDrProbabilities('tx1');
+
+        // Byte 2 — locked when dual TX is disabled for both static and motion modes
+        const dualEnabled = dualStatic || dualMotion;
+        const tx2Body     = document.getElementById('tx2_dr_body');
+        const tx2Notice   = document.getElementById('tx2_locked_notice');
+        if (dualEnabled) {
+            tx2Body.classList.remove('dr-section-disabled');
+            tx2Notice.style.display = 'none';
+            updateDrProbabilities('tx2');
+        } else {
+            tx2Body.classList.add('dr-section-disabled');
+            tx2Notice.style.display = 'block';
+        }
     }
 
     /***********************************************************************
@@ -706,8 +1112,8 @@
         0x02: { name: 'WiFi',       params: ['nb_ap']                   },
         0x03: { name: 'BLE Scan 1', params: ['scan_dur', 'nb_beacons']  },
         0x04: { name: 'BLE Scan 2', params: ['scan_dur', 'nb_beacons']  },
-        0x05: { name: 'LPGPS',      params: ['ttff', 'conv']            },
-        0x06: { name: 'GNSS',       params: ['ttff', 'conv']            },
+        0x05: { name: 'LPGPS', params: ['ttff'], gnss: true },
+        0x06: { name: 'GNSS',  params: ['ttff'], gnss: true },
     };
 
     const TECHNO_PARAM_META = {
@@ -729,10 +1135,8 @@
                     nb_beacons: +c.ble_scan1_nb_beacons     || 4  },
             0x04: { scan_dur: +c.ble_scan2_duration         || 3000,
                     nb_beacons: +c.ble_scan2_nb_beacons     || 4  },
-            0x05: { ttff: +c.gnss_t0_timeout_motion         || 30,
-                    conv: +c.gnss_convergence_motion         || 20 },
-            0x06: { ttff: +c.gnss_t0_timeout_motion         || 30,
-                    conv: +c.gnss_convergence_motion         || 20 },
+            0x05: { ttff: +c.gnss_t0_timeout_motion || 30 },
+            0x06: { ttff: +c.gnss_t0_timeout_motion || 30 },
         };
         const m = maps[technoCode];
         return m && m[paramKey] != null ? m[paramKey] : undefined;
@@ -776,6 +1180,55 @@
                     <input type="number" min="0" id="${eid}" value="${val}"><br>`;
         }).join('');
 
+        // For GNSS / LPGPS: build failure-reason breakdown + config reference block
+        let gnssFailHTML = '';
+        if (techno.gnss) {
+            const c   = cfg || {};
+            const t0m = +c.gnss_t0_timeout_motion    || 30;
+            const cvm = +c.gnss_convergence_motion   || 20;
+            const t0s = +c.gnss_t0_timeout_static    || 30;
+            const cvs = +c.gnss_convergence_static   || 20;
+            const mxt = +c.gnss_max_time             || 300;
+            gnssFailHTML = `
+            <div style="margin:8px 0 4px; padding:7px 9px; background:#f4f9fa; border-radius:4px; border-left:3px solid #008293;">
+                <small style="color:#008293; font-weight:bold; display:block; margin-bottom:6px;">Failure reason split:</small>
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px; align-items:end;">
+                    <div>
+                        <label for="geoloc_p${pi}_s${si}_t0_fail_pct" style="font-size:.75rem; color:#555; display:block; margin-bottom:2px;">T0 timeout [%]</label>
+                        <input type="number" min="0" max="100" id="geoloc_p${pi}_s${si}_t0_fail_pct" value="50" style="margin:0;"
+                            oninput="(function(v){var o=document.getElementById('geoloc_p${pi}_s${si}_max_fail_pct');if(o)o.value=Math.max(0,100-Math.min(100,+v||0));})(this.value)">
+                    </div>
+                    <div>
+                        <label for="geoloc_p${pi}_s${si}_max_fail_pct" style="font-size:.75rem; color:#555; display:block; margin-bottom:2px;">Max timeout [%]</label>
+                        <input type="number" min="0" max="100" id="geoloc_p${pi}_s${si}_max_fail_pct" value="50" style="margin:0;"
+                            oninput="(function(v){var o=document.getElementById('geoloc_p${pi}_s${si}_t0_fail_pct');if(o)o.value=Math.max(0,100-Math.min(100,+v||0));})(this.value)">
+                    </div>
+                </div>
+                <div style="font-size:.7rem; color:#aaa; margin-top:4px; text-align:right;">T0 + Max = 100 %</div>
+            </div>
+            <table style="width:100%; border-collapse:collapse; font-size:.72rem; color:#777; margin-top:5px;">
+                <tr>
+                    <td></td>
+                    <td style="font-weight:bold; color:#555; padding:1px 4px; text-align:center;">Motion</td>
+                    <td style="font-weight:bold; color:#555; padding:1px 4px; text-align:center;">Static</td>
+                </tr>
+                <tr>
+                    <td style="padding:1px 4px;">T0</td>
+                    <td style="padding:1px 4px; text-align:center;">${t0m} s</td>
+                    <td style="padding:1px 4px; text-align:center;">${t0s} s</td>
+                </tr>
+                <tr>
+                    <td style="padding:1px 4px;">Conv</td>
+                    <td style="padding:1px 4px; text-align:center;">${cvm} s</td>
+                    <td style="padding:1px 4px; text-align:center;">${cvs} s</td>
+                </tr>
+                <tr>
+                    <td style="padding:1px 4px;">Max</td>
+                    <td colspan="2" style="padding:1px 4px; text-align:center;">${mxt} s</td>
+                </tr>
+            </table>`;
+        }
+
         return `
         <div class="techno-slot">
             <div class="techno-slot-header">
@@ -783,9 +1236,13 @@
                 <span class="badge ${badgeClass}">${badgeLabel}</span>
                 <span class="slot-order">Slot ${si + 1}</span>
             </div>
-            <label for="${failId}">Failure probability [%]:</label><br>
-            <input type="number" min="0" max="100" id="${failId}" value="0"><br>
-            <small style="color:#888;">${failHint}</small>
+            <div style="display:flex; align-items:center; gap:6px; margin-bottom:3px;">
+                <label for="${failId}" style="flex:1; margin:0;">Failure probability</label>
+                <input type="number" min="0" max="100" id="${failId}" value="0" style="width:64px; margin:0;">
+                <span style="color:#888; font-size:.85rem;">%</span>
+            </div>
+            <small style="color:#888; font-size:.72rem; display:block; margin-bottom:2px;">${failHint}</small>
+            ${gnssFailHTML}
             ${paramsHTML ? '<hr style="margin:6px 0;">' + paramsHTML : ''}
         </div>`;
     }
@@ -883,6 +1340,49 @@
     }
 
     /***********************************************************************
+     * Network selection & usage percentage handlers
+     ***********************************************************************/
+    function onNetSelectionChange() {
+        const mode       = parseInt(document.getElementById('net_selection').value);
+        const loraPct    = document.getElementById('net_usage_lora_pct');
+        const cellPct    = document.getElementById('net_usage_cellular_pct');
+
+        if (mode === 0) {
+            // LoRa only
+            loraPct.value = 100; cellPct.value = 0;
+            loraPct.setAttribute('readonly', true);  loraPct.style.background = '#f5f5f5';
+            cellPct.setAttribute('readonly', true);  cellPct.style.background = '#f5f5f5';
+        } else if (mode === 1) {
+            // Cellular only
+            loraPct.value = 0; cellPct.value = 100;
+            loraPct.setAttribute('readonly', true);  loraPct.style.background = '#f5f5f5';
+            cellPct.setAttribute('readonly', true);  cellPct.style.background = '#f5f5f5';
+        } else {
+            // Fallback modes — user editable
+            loraPct.removeAttribute('readonly'); loraPct.style.background = '';
+            cellPct.removeAttribute('readonly'); cellPct.style.background = '';
+            // Set sensible defaults if coming from a locked state
+            if (mode === 2 && parseFloat(loraPct.value) === 0 && parseFloat(cellPct.value) === 100) {
+                loraPct.value = 80; cellPct.value = 20;
+            } else if (mode === 3 && parseFloat(loraPct.value) === 100 && parseFloat(cellPct.value) === 0) {
+                loraPct.value = 20; cellPct.value = 80;
+            }
+        }
+    }
+
+    function onLoraNetPctChange(el) {
+        const v = Math.min(100, Math.max(0, parseFloat(el.value) || 0));
+        el.value = v;
+        document.getElementById('net_usage_cellular_pct').value = 100 - v;
+    }
+
+    function onCellularNetPctChange(el) {
+        const v = Math.min(100, Math.max(0, parseFloat(el.value) || 0));
+        el.value = v;
+        document.getElementById('net_usage_lora_pct').value = 100 - v;
+    }
+
+    /***********************************************************************
      * Discharge profile preset handler
      ***********************************************************************/
     function onDischargeProfileChange() {
@@ -923,84 +1423,72 @@
     document.getElementById('cpu_idle_ua').addEventListener('change', function() {
         this._userEdited = true;
     });
-    onProductChange(); // run on page load to set initial state
+    onProductChange();      // run on page load to set initial state
+    onNetSelectionChange(); // run on page load to set initial percentage state
 
-    /***********************************************************************
-     * Mirror values into the read-only LoRa summary panel
-     ***********************************************************************/
-    function periodToMsgPerDay(periodS) {
-        const p = parseFloat(periodS) || 0;
-        return p > 0 ? (86400 / p).toFixed(2) : '0';
-    }
-
-    function syncLoraReadOnly() {
-        document.getElementById('lora_heartbeat_ro').value = periodToMsgPerDay(document.getElementById('heartbeat_period_s').value);
-        document.getElementById('lora_gps_ro').value       = document.getElementById('gps_nof_msg_per_day').value;
-        document.getElementById('lora_agps_ro').value      = document.getElementById('agps_nof_msg_per_day').value;
-        document.getElementById('lora_wifi_ro').value      = document.getElementById('wifi_nof_msg_per_day').value;
-        document.getElementById('lora_ble_ro').value       = document.getElementById('ble_nof_msg_per_day').value;
-        document.getElementById('lora_custom_ro').value    = document.getElementById('custom_msg_nof_msg_per_day').value;
-    }
-    document.addEventListener('input', syncLoraReadOnly);
-    syncLoraReadOnly();
+    initTxStrategyUI();
 
     /***********************************************************************
      * Disk Analyser — group / component definitions
      ***********************************************************************/
     // All colors derived from the page brand teal (#008293) — cool blue-green spectrum only
+    // ── Group descriptors ─────────────────────────────────────────────
+    // srcKeys: group total is the sum of those result.group_currents_ma keys
+    // getChildren(result): dynamically computed children (for BLE Scan 1/2 split)
+    // children[].srcKey: child value comes from result.group_currents_ma[srcKey]
+    //                    (otherwise result.components_ma[key])
     const GROUPS = [
         {
-            key:   'cpu',
-            label: 'CPU & System',
-            color: '#005f6b',
-            components: [
+            key: 'cpu', label: 'CPU & System', color: '#005f6b',
+            children: [
                 { key: 'cpu_quiescent',  label: 'Quiescent + Battery Leakage', color: '#008293' },
                 { key: 'cpu_idle',       label: 'CPU Idle',                     color: '#33b5c4' },
                 { key: 'cpu_monitoring', label: 'Monitoring',                   color: '#66d0dd' },
             ]
         },
         {
-            key:   'geolocation',
-            label: 'Geolocation',
-            color: '#003f54',
-            components: [
-                { key: 'geoloc_gps',  label: 'GPS (HW + LoRa TX)',       color: '#005f73' },
-                { key: 'geoloc_agps', label: 'AGPS (HW + LoRa TX)',      color: '#0a7d94' },
-                { key: 'geoloc_wifi', label: 'WiFi Scan (HW + LoRa TX)', color: '#1499b3' },
-                { key: 'geoloc_ble',  label: 'BLE Scan (HW + LoRa TX)',  color: '#33b8d0' },
+            key: 'geolocation', label: 'Geolocation', color: '#003f54',
+            children: [
+                { key: 'geoloc_gps',  label: 'GNSS',       color: '#005f73' },
+                { key: 'geoloc_agps', label: 'AGPS',        color: '#0a7d94' },
+                { key: 'geoloc_wifi', label: 'WiFi Scan',   color: '#1499b3' },
+                { key: 'geoloc_ble1', label: 'BLE Scan 1',  color: '#33b8d0' },
+                { key: 'geoloc_ble2', label: 'BLE Scan 2',  color: '#5ccfe8' },
             ]
         },
         {
-            key:   'cellular',
-            label: 'Cellular (LTE-M / NB-IoT)',
-            color: '#1e5f7a',
-            components: [
-                { key: 'cellular', label: 'LTE-M / NB-IoT Sessions', color: '#2c7fa0' },
+            key: 'network', label: 'Network', color: '#1e5f7a',
+            srcKeys: ['cellular', 'lora'],
+            children: [
+                { key: '_cellular', label: 'Cellular',           color: '#2c7fa0', srcKey: 'cellular' },
+                { key: '_lora',     label: 'LoRa Communication', color: '#006b60', srcKey: 'lora'     },
             ]
         },
         {
-            key:   'lora',
-            label: 'LoRa Communication',
-            color: '#00524a',
-            components: [
-                { key: 'lora_heartbeat',      label: 'Heartbeat Uplinks',  color: '#006b60' },
-                { key: 'lora_status_msg',     label: 'Status Messages',    color: '#009688' },
-                { key: 'lora_custom_msg',     label: 'Custom Messages',    color: '#00897b' },
-                { key: 'lora_scan_collection', label: 'Scan Collection',    color: '#26a69a' },
-                { key: 'lora_custom_ble',      label: 'Custom BLE Usage',   color: '#4dbfb4' },
-            ]
-        },
-        {
-            key:   'recovery_beacon',
-            label: 'Recovery Beacon',
-            color: '#1a3a4a',
-            components: [
+            key: 'recovery_beacon', label: 'Recovery Beacon', color: '#1a3a4a',
+            children: [
                 { key: 'recovery_beacon', label: 'Periodic LoRa Beacon', color: '#2a5568' },
             ]
         },
     ];
 
+    // ── Group helper functions ────────────────────────────────────────
+    function getGroupTotal(g, result) {
+        if (g.srcKeys) return g.srcKeys.reduce((s, k) => s + (result.group_currents_ma[k] || 0), 0);
+        return result.group_currents_ma[g.key] || 0;
+    }
+    function getGroupChildren(g, result) {
+        if (g.getChildren) return g.getChildren(result);
+        return g.children || [];
+    }
+    function getChildValue(c, result) {
+        if (c.srcKey) return result.group_currents_ma[c.srcKey] || 0;
+        return result.components_ma[c.key] || 0;
+    }
+
     let sunburstChart = null;
+    let drChartTx1 = null;
+    let drChartTx2 = null;
 
     /***********************************************************************
      * Compute all geolocation inputs from active profiles + config periods
@@ -1010,7 +1498,8 @@
         const cfg          = window.deviceConfig || {};
         const motionPeriod = parseFloat(cfg.geoloc_motion_period) || 300;   // [s]
         const staticPeriod = parseFloat(cfg.geoloc_static_period) || 3600;  // [s]
-        const motionFrac   = (parseFloat(document.getElementById('motion_pct').value) || 50) / 100;
+        const _mPct0 = parseFloat(document.getElementById('motion_pct').value);
+        const motionFrac   = (isNaN(_mPct0) ? 50 : _mPct0) / 100;
 
         // Overall trigger rate (used for summary display and fallback)
         const triggersPerDay = motionFrac * (86400 / motionPeriod)
@@ -1023,19 +1512,20 @@
          * If a bit is 0, that state contributes 0 triggers for this profile.
          */
         function profileTriggersPerDay(profile) {
-            const bm = profile.triggers;
-            const motionContrib = (bm & 0x10) ? motionFrac * (86400 / motionPeriod) : 0;
-            const staticContrib = (bm & 0x20) ? (1 - motionFrac) * (86400 / staticPeriod) : 0;
-            return motionContrib + staticContrib;
+            const bm     = profile.triggers;
+            const motion = (bm & 0x10) ? motionFrac * (86400 / motionPeriod) : 0;
+            const statc  = (bm & 0x20) ? (1 - motionFrac) * (86400 / staticPeriod) : 0;
+            return { motion, statc, total: motion + statc };
         }
 
         // Accumulated effective nof_msg_per_day per techno type
         const technoMsg = {
-            gnss:  { nof: 0, ttff: 30, conv: 20 },
-            lpgps: { nof: 0, ttff: 30, conv: 20 },
+            gnss:  { current_ma: 0, nof_success: 0 },
+            lpgps: { current_ma: 0, nof_success: 0 },
             agnss: { nof: 0, on_time: 45, nb_sat: 5 },
             wifi:  { nof: 0, nb_ap: 4 },
-            ble:   { nof: 0, nb_beacons: 4 },
+            ble1:  { nof: 0, scan_dur_ms: 3000, nb_beacons: 4 },  // BLE Scan 1 (technoCode 0x03)
+            ble2:  { nof: 0, scan_dur_ms: 3000, nb_beacons: 4 },  // BLE Scan 2 (technoCode 0x04)
         };
 
         const stats = [];
@@ -1046,14 +1536,14 @@
             const profileStats = {
                 profileIndex:    profile.profileIndex,
                 triggers:        profile.triggers,
-                triggersPerDay:  perProfileTriggers,
+                triggersPerDay:  perProfileTriggers.total,
                 slots: [],
             };
 
             for (let i = 0; i < profile.slots.length; i++) {
-                const slot     = profile.slots[i];
-                const runProb  = probs[i];
-                const runsPerDay = perProfileTriggers * runProb;
+                const slot       = profile.slots[i];
+                const runProb    = probs[i];
+                const runsPerDay = perProfileTriggers.total * runProb;
 
                 const failEl   = document.getElementById(`geoloc_p${profile.profileIndex}_s${slot.slotIndex}_fail_pct`);
                 const failPct  = failEl ? (parseFloat(failEl.value) || 0) : 0;
@@ -1065,15 +1555,51 @@
 
                 switch (slot.technoCode) {
                     case 0x06:  // GNSS
-                        technoMsg.gnss.nof  += runsPerDay;
-                        technoMsg.gnss.ttff  = getP('ttff', 30);
-                        technoMsg.gnss.conv  = getP('conv', 20);
+                    case 0x05: {  // LPGPS
+                        // GNSS timing parameters from device config
+                        const t0Motion = parseFloat(cfg.gnss_t0_timeout_motion)  || 30;
+                        const cvMotion = parseFloat(cfg.gnss_convergence_motion) || 20;
+                        const t0Static = parseFloat(cfg.gnss_t0_timeout_static)  || 30;
+                        const cvStatic = parseFloat(cfg.gnss_convergence_static) || 20;
+                        const maxTime  = parseFloat(cfg.gnss_max_time)           || 300;
+
+                        // User inputs per slot
+                        const ttff      = getP('ttff', t0Motion);
+                        const t0FailPct = getP('t0_fail_pct', 0);
+                        const mxFailPct = getP('max_fail_pct', 0);
+
+                        // Probability breakdown
+                        const successProb = (100 - failPct) / 100;
+                        const t0AbsProb   = (failPct / 100) * (t0FailPct / 100);
+                        const mxAbsProb   = (failPct / 100) * (mxFailPct / 100);
+
+                        // Expected active duration per run, split by device state
+                        const avgDurMotion = successProb * (ttff + cvMotion)
+                                           + t0AbsProb   * t0Motion
+                                           + mxAbsProb   * maxTime;
+                        const avgDurStatic = successProb * (ttff + cvStatic)
+                                           + t0AbsProb   * t0Static
+                                           + mxAbsProb   * maxTime;
+
+                        // Per-slot motion/static run rates (triggers × slot-run-probability)
+                        const motionRunsPerDay = perProfileTriggers.motion * runProb;
+                        const staticRunsPerDay = perProfileTriggers.statc  * runProb;
+
+                        const slotCurrentMa = HW.gnss_active_current_ma *
+                            (motionRunsPerDay * avgDurMotion + staticRunsPerDay * avgDurStatic) / 86400;
+
+                        // Only successful fixes send a LoRa uplink
+                        const slotNofSuccess = runsPerDay * successProb;
+
+                        if (slot.technoCode === 0x06) {
+                            technoMsg.gnss.current_ma  += slotCurrentMa;
+                            technoMsg.gnss.nof_success += slotNofSuccess;
+                        } else {
+                            technoMsg.lpgps.current_ma  += slotCurrentMa;
+                            technoMsg.lpgps.nof_success += slotNofSuccess;
+                        }
                         break;
-                    case 0x05:  // LPGPS
-                        technoMsg.lpgps.nof  += runsPerDay;
-                        technoMsg.lpgps.ttff  = getP('ttff', 30);
-                        technoMsg.lpgps.conv  = getP('conv', 20);
-                        break;
+                    }
                     case 0x01:  // AGNSS
                         technoMsg.agnss.nof     += runsPerDay;
                         technoMsg.agnss.on_time  = getP('on_time', 45);
@@ -1084,9 +1610,14 @@
                         technoMsg.wifi.nb_ap   = getP('nb_ap', 4);
                         break;
                     case 0x03:  // BLE Scan 1
+                        technoMsg.ble1.nof        += runsPerDay;
+                        technoMsg.ble1.scan_dur_ms = getP('scan_dur', 3000);
+                        technoMsg.ble1.nb_beacons  = getP('nb_beacons', 4);
+                        break;
                     case 0x04:  // BLE Scan 2
-                        technoMsg.ble.nof        += runsPerDay;
-                        technoMsg.ble.nb_beacons  = getP('nb_beacons', 4);
+                        technoMsg.ble2.nof        += runsPerDay;
+                        technoMsg.ble2.scan_dur_ms = getP('scan_dur', 3000);
+                        technoMsg.ble2.nb_beacons  = getP('nb_beacons', 4);
                         break;
                 }
 
@@ -1150,7 +1681,8 @@
                 const cfg = window.deviceConfig || {};
                 const mp  = parseFloat(cfg.geoloc_motion_period) || 300;
                 const sp  = parseFloat(cfg.geoloc_static_period) || 3600;
-                const mf  = (parseFloat(document.getElementById('motion_pct').value) || 50);
+                const _mfRaw = parseFloat(document.getElementById('motion_pct').value);
+                const mf  = isNaN(_mfRaw) ? 50 : _mfRaw;
                 const inMotion = !!(ps.triggers & 0x10);
                 const inStatic = !!(ps.triggers & 0x20);
                 const motionPart = inMotion
@@ -1207,53 +1739,614 @@
         const fmtI = n => Math.round(n).toLocaleString();
         const fmtF = n => n.toLocaleString(undefined, { maximumFractionDigits: 2 });
 
-        // Heartbeat
-        const hbPeriod  = parseFloat(document.getElementById('heartbeat_period_s').value) || 0;
-        const hbPerDay  = hbPeriod > 0 ? 86400 / hbPeriod : 0;
-        const hbTotal   = Math.round(hbPerDay * lifeDays);
-
-        // Status message
-        const stPeriod  = parseFloat(document.getElementById('status_period_s').value) || 0;
-        const stPerDay  = stPeriod > 0 ? 86400 / stPeriod : 0;
-        const stTotal   = Math.round(stPerDay * lifeDays);
+        // System monitoring wakeups
+        const monPeriod = parseFloat(document.getElementById('monitoring_period_s').value) || 0;
+        const monPerDay = monPeriod > 0 ? 86400 / monPeriod : 0;
+        const monTotal  = Math.round(monPerDay * lifeDays);
 
         // CPU group mAh
         const cpuMah = ((result.group_currents_ma.cpu || 0) * lifetimeH).toFixed(1);
 
-        const msgRow = (label, period, perDay, total) => {
-            if (period <= 0) return `
-                <tr>
-                    <td>${label}</td>
-                    <td colspan="3" style="color:#aaa;">Disabled (period = 0)</td>
-                </tr>`;
-            return `
-                <tr>
-                    <td>${label}</td>
-                    <td class="right">${period} s</td>
-                    <td class="right">${fmtF(perDay)} / day</td>
-                    <td class="right"><strong>${fmtI(total)}</strong> total</td>
-                </tr>`;
-        };
+        const monRow = monPeriod <= 0
+            ? `<tr><td>System monitoring wakeup</td><td colspan="3" style="color:#aaa;">Disabled (period = 0)</td></tr>`
+            : `<tr>
+                <td>System monitoring wakeup</td>
+                <td class="right">${monPeriod} s</td>
+                <td class="right">${fmtF(monPerDay)} / day</td>
+                <td class="right"><strong>${fmtI(monTotal)}</strong> total</td>
+               </tr>`;
 
         content.innerHTML = `
             <table class="geoloc-stats-table" style="margin-bottom:10px;">
                 <thead>
                     <tr>
-                        <th>Message type</th>
+                        <th>Event</th>
                         <th class="right">Period</th>
                         <th class="right">Rate</th>
                         <th class="right">Lifetime total</th>
                     </tr>
                 </thead>
                 <tbody>
-                    ${msgRow('Heartbeat',       hbPeriod, hbPerDay, hbTotal)}
-                    ${msgRow('Status message',  stPeriod, stPerDay, stTotal)}
+                    ${monRow}
                 </tbody>
             </table>
             <div style="font-size:.85rem; color:#555;">
                 CPU &amp; System total consumption: <strong style="color:#008293;">${cpuMah} mAh</strong>
                 over the estimated battery lifetime (${Math.round(lifeDays).toLocaleString()} days).
             </div>`;
+    }
+
+    /***********************************************************************
+     * Render Uplinks by Network Technology section
+     ***********************************************************************/
+    function renderUplinksStats(result, input) {
+        const section = document.getElementById('uplinks_stats_section');
+        const content = document.getElementById('uplinks_stats_content');
+        section.style.display = '';
+
+        const cfg       = window.deviceConfig || {};
+        const cfgLoaded = Object.keys(cfg).length > 0;
+        const lifeDays  = result.battery_life_days;
+        const isCombo   = document.getElementById('product').value === 'combo_tracker';
+
+        const loraFactor  = (parseFloat(document.getElementById('net_usage_lora_pct').value)     || 0) / 100;
+        const lteFactor   = (parseFloat(document.getElementById('net_usage_cellular_pct').value) || 0) / 100;
+        const _mPct1 = parseFloat(document.getElementById('motion_pct').value);
+        const motionFrac  = (isNaN(_mPct1) ? 50 : _mPct1) / 100;
+        const staticFrac  = 1 - motionFrac;
+
+        const loraUsagePct = Math.round(loraFactor * 100);
+        const lteUsagePct  = Math.round(lteFactor  * 100);
+
+        // ── Message periods (from UI fields) ─────────────────────────────
+        const statusPeriod    = parseFloat(document.getElementById('status_period_s').value) || 0;
+        const statusPerDayRaw = statusPeriod > 0 ? 86400 / statusPeriod : 0;
+        const numStatusTypes  = isCombo ? 4 : 2;  // Status2 and Status3 only on combo board
+
+        const hbPeriod    = parseFloat(document.getElementById('heartbeat_period_s').value) || 0;
+        const hbPerDayRaw = hbPeriod > 0 ? 86400 / hbPeriod : 0;
+
+        // ── LoRa probing (from device config file) ────────────────────────
+        const loraProbeMaxStatic    = parseFloat(cfg.lorawan_probe_max_attempts_static);
+        const loraProbeMaxMotion    = parseFloat(cfg.lorawan_probe_max_attempts_motion);
+        const loraProbePeriodStatic = parseFloat(cfg.lorawan_probe_period_static) || 0;
+        const loraProbePeriodMotion = parseFloat(cfg.lorawan_probe_period_motion) || 0;
+        const loraProbeStaticActive = !isNaN(loraProbeMaxStatic) && loraProbeMaxStatic !== 0 && loraProbePeriodStatic > 0;
+        const loraProbeMotionActive = !isNaN(loraProbeMaxMotion) && loraProbeMaxMotion !== 0 && loraProbePeriodMotion > 0;
+        const loraProbeStaticRaw    = loraProbeStaticActive ? 86400 / loraProbePeriodStatic : 0;
+        const loraProbeMotionRaw    = loraProbeMotionActive ? 86400 / loraProbePeriodMotion : 0;
+
+        // ── LTE probing (from device config file) ─────────────────────────
+        const cellProbeMax    = parseFloat(cfg.cell_max_probe_attempts);
+        const cellProbePeriod = parseFloat(cfg.cell_probe_period) || 0;
+        const lteProbeActive  = !isNaN(cellProbeMax) && cellProbeMax !== 0 && cellProbePeriod > 0;
+        const lteProbeRaw     = lteProbeActive ? 86400 / cellProbePeriod : 0;
+
+        // ── Effective rates scaled by network usage & motion/static split ──
+        const loraStatusPerDay        = statusPerDayRaw * loraFactor;
+        const loraStatusPerTypePerDay = numStatusTypes > 0 ? loraStatusPerDay / numStatusTypes : 0;
+        const loraHbPerDay            = hbPerDayRaw * loraFactor;
+        const loraProbeStaticPerDay   = loraProbeStaticRaw * staticFrac * loraFactor;
+        const loraProbeMotionPerDay   = loraProbeMotionRaw * motionFrac * loraFactor;
+        const loraTotalPerDay         = loraStatusPerDay + loraHbPerDay + loraProbeStaticPerDay + loraProbeMotionPerDay;
+
+        const lteStatusPerDay         = statusPerDayRaw * lteFactor;
+        const lteStatusPerTypePerDay  = numStatusTypes > 0 ? lteStatusPerDay / numStatusTypes : 0;
+        const lteProbePerDay          = lteProbeRaw * lteFactor;
+        const lteTotalPerDay          = lteStatusPerDay + lteProbePerDay;
+
+        // ── Formatting helpers ────────────────────────────────────────────
+        const fmtR = n => n.toLocaleString(undefined, { maximumFractionDigits: 2 });
+        const fmtI = n => Math.round(n).toLocaleString();
+
+        // mkRow: state = 'active' | 'disabled' | 'no-config'
+        function mkRow(label, hint, perDay, state, indent = 0) {
+            const pad = `padding-left:${10 + indent * 16}px;`;
+            if (state === 'no-config') return `
+                <tr>
+                    <td style="${pad} color:#b07800;">${label}</td>
+                    <td colspan="3" style="color:#b07800; font-size:.77rem; font-style:italic;">
+                        Load a config file to see probe parameters
+                    </td>
+                </tr>`;
+            if (state === 'disabled') return `
+                <tr>
+                    <td style="${pad} color:#aaa;">${label}</td>
+                    <td style="color:#aaa; font-size:.77rem;">${hint}</td>
+                    <td class="right" style="color:#aaa;">—</td>
+                    <td class="right" style="color:#aaa; font-style:italic;">Disabled</td>
+                </tr>`;
+            return `
+                <tr>
+                    <td style="${pad}">${label}</td>
+                    <td style="color:#666; font-size:.77rem;">${hint}</td>
+                    <td class="right" style="font-weight:bold;">${fmtR(perDay)}</td>
+                    <td class="right" style="font-weight:bold;">${fmtI(perDay * lifeDays)}</td>
+                </tr>`;
+        }
+
+        function mkSubHeader(label) {
+            return `
+                <tr>
+                    <td colspan="4" style="background:#f4f9fa; padding:4px 10px; color:#008293;
+                        font-size:.77rem; font-weight:bold; border-top:1px solid #dde; border-bottom:1px solid #dde;">
+                        ${label}
+                    </td>
+                </tr>`;
+        }
+
+        function mkTotalRow(label, perDay, color) {
+            return `
+                <tr style="border-top:2px solid #ccc;">
+                    <td colspan="2" style="font-weight:bold; padding:6px 10px; color:#333;">${label}</td>
+                    <td class="right" style="font-weight:bold;">${fmtR(perDay)}</td>
+                    <td class="right" style="font-weight:bold; color:${color}; font-size:1rem;">${fmtI(perDay * lifeDays)}</td>
+                </tr>`;
+        }
+
+        function mkTableHead() {
+            return `<tr>
+                <th>Message type</th>
+                <th>Period / Config</th>
+                <th class="right">/ day</th>
+                <th class="right">Lifetime</th>
+            </tr>`;
+        }
+
+        // ── Row states ────────────────────────────────────────────────────
+        const statusState    = statusPeriod <= 0 ? 'disabled' : 'active';
+        const hbState        = hbPeriod    <= 0 ? 'disabled' : 'active';
+
+        const loraProbeStaticState = !cfgLoaded ? 'no-config'
+            : loraProbeStaticActive ? 'active'
+            : 'disabled';
+        const loraProbeMotionState = !cfgLoaded ? 'no-config'
+            : loraProbeMotionActive ? 'active'
+            : 'disabled';
+        const lteProbeState = !cfgLoaded ? 'no-config'
+            : lteProbeActive ? 'active'
+            : 'disabled';
+
+        // ── Config hint strings ───────────────────────────────────────────
+        const statusHint   = statusPeriod > 0 ? `core_status_period = ${statusPeriod} s` : 'period = 0 (disabled)';
+        const hbHint       = hbPeriod    > 0 ? `lorawan_heartbeat_period = ${hbPeriod} s` : 'period = 0 (disabled)';
+
+        const loraProbeStaticHint = !cfgLoaded ? '' : loraProbeStaticActive
+            ? `lorawan_probe_period_static = ${loraProbePeriodStatic} s  ·  max = ${loraProbeMaxStatic}`
+            : (cfg.lorawan_probe_max_attempts_static === '0' ? 'lorawan_probe_max_attempts_static = 0' : 'not set in config');
+        const loraProbeMotionHint = !cfgLoaded ? '' : loraProbeMotionActive
+            ? `lorawan_probe_period_motion = ${loraProbePeriodMotion} s  ·  max = ${loraProbeMaxMotion}`
+            : (cfg.lorawan_probe_max_attempts_motion === '0' ? 'lorawan_probe_max_attempts_motion = 0' : 'not set in config');
+        const lteProbeHint = !cfgLoaded ? '' : lteProbeActive
+            ? `cell_probe_period = ${cellProbePeriod} s  ·  max = ${cellProbeMax}`
+            : (cfg.cell_max_probe_attempts === '0' ? 'cell_max_probe_attempts = 0' : 'not set in config');
+
+        // ── Position uplinks from geolocation profiles ────────────────────────
+        // Each scenario = one combined uplink payload (e.g. "WiFi(failure) + GNSS")
+        const posScenarios   = (cfgLoaded && window.geolocProfiles?.length > 0)
+            ? computePositionUplinks() : null;
+
+        const posTotalPerDay       = posScenarios ? posScenarios.reduce((s, e) => s + e.perDay, 0) : 0;
+        const posTotalMotionPerDay = posScenarios ? posScenarios.reduce((s, e) => s + e.perDayMotion, 0) : 0;
+        const posTotalStaticPerDay = posScenarios ? posScenarios.reduce((s, e) => s + e.perDayStatic, 0) : 0;
+        const posLoraPerDay  = posTotalPerDay * loraFactor;
+        const posLtePerDay   = posTotalPerDay * lteFactor;
+
+        // Display totals include position uplinks; TX-strategy variables are unchanged
+        const loraDisplayTotal = loraTotalPerDay + posLoraPerDay;
+        const lteDisplayTotal  = lteTotalPerDay  + posLtePerDay;
+
+        // ── Status type labels ────────────────────────────────────────────
+        const statusTypes = ['Status 0', 'Status 1'];
+        if (isCombo) statusTypes.push('Status 2', 'Status 3');
+
+        // ── TX Strategy — compute early so rows can use TX2 values ──────────
+        const txStratRawParsed = parseInt(cfg.lorawan_s1_tx_strategy);
+        const hasTxStrat       = cfgLoaded && !isNaN(txStratRawParsed);
+
+        function getDRMaskProbs(bitmask) {
+            const probs  = new Array(8).fill(0);
+            const active = [];
+            for (let i = 0; i < 8; i++) if (bitmask & (1 << i)) active.push(i);
+            if (active.length) { const p = 1 / active.length; active.forEach(i => probs[i] = p); }
+            return probs;
+        }
+        function getAdrDRProbs() {
+            const probs = new Array(8).fill(0); let sum = 0;
+            for (let i = 0; i < 8; i++) {
+                const v = parseFloat((document.getElementById(`adr_pct_${i}`) || {}).value) || 0;
+                probs[i] = v; sum += v;
+            }
+            if (sum > 0) for (let i = 0; i < 8; i++) probs[i] /= sum;
+            return probs;
+        }
+
+        let txAdr = false, txDualStatic = false, txDualMotion = false;
+        let tx2StatusPerDay = 0, tx2HbPerDay = 0;
+        let tx2ProbeStaticPerDay = 0, tx2ProbeMotionPerDay = 0;
+        let tx2TotalPerDay = 0, tx2StatusPerTypePD = 0;
+        let tx1DRProbs = new Array(8).fill(0);
+        let tx2DRProbs = new Array(8).fill(0);
+        let rx1Tx1 = 0, rx2Tx1 = 0, rx1Tx2 = 0, rx2Tx2 = 0;
+
+        if (hasTxStrat) {
+            const byte0 = txStratRawParsed & 0xFF;
+            const byte1 = (txStratRawParsed >> 8) & 0xFF;
+            const byte2 = (txStratRawParsed >> 16) & 0xFF;
+            txAdr        = !!(byte0 & 0x01);
+            txDualStatic = !!(byte0 & 0x02);
+            txDualMotion = !!(byte0 & 0x04);
+
+            const dS = txDualStatic ? 1 : 0, dM = txDualMotion ? 1 : 0;
+            tx2StatusPerDay      = loraStatusPerDay  * (staticFrac * dS + motionFrac * dM);
+            tx2HbPerDay          = loraHbPerDay       * (staticFrac * dS + motionFrac * dM);
+            tx2ProbeStaticPerDay = loraProbeStaticPerDay * dS;
+            tx2ProbeMotionPerDay = loraProbeMotionPerDay * dM;
+            tx2TotalPerDay       = tx2StatusPerDay + tx2HbPerDay + tx2ProbeStaticPerDay + tx2ProbeMotionPerDay;
+            tx2StatusPerTypePD   = numStatusTypes > 0 ? tx2StatusPerDay / numStatusTypes : 0;
+
+            const byte1Probs = getDRMaskProbs(byte1);
+            tx2DRProbs       = getDRMaskProbs(byte2);
+            const adrProbs   = txAdr ? getAdrDRProbs() : new Array(8).fill(0);
+            const sPD = loraStatusPerDay * staticFrac + loraHbPerDay * staticFrac + loraProbeStaticPerDay;
+            const mPD = loraStatusPerDay * motionFrac + loraHbPerDay * motionFrac + loraProbeMotionPerDay;
+            if (loraTotalPerDay > 0) {
+                const sFr = sPD / loraTotalPerDay, mFr = mPD / loraTotalPerDay;
+                for (let i = 0; i < 8; i++)
+                    tx1DRProbs[i] = sFr * (txAdr ? adrProbs[i] : byte1Probs[i]) + mFr * byte1Probs[i];
+            }
+            rx1Tx1 = loraTotalPerDay; rx2Tx1 = loraTotalPerDay;
+            rx1Tx2 = tx2TotalPerDay;  rx2Tx2 = tx2TotalPerDay;
+        }
+
+        // TX2 position uplinks — scaled by LoRa factor; no TX2 concept for cellular
+        let tx2PosLoraPerDay = 0;
+        if (hasTxStrat && posScenarios?.length > 0) {
+            const dS = txDualStatic ? 1 : 0, dM = txDualMotion ? 1 : 0;
+            tx2PosLoraPerDay = (posTotalMotionPerDay * dM + posTotalStaticPerDay * dS) * loraFactor;
+            tx2TotalPerDay  += tx2PosLoraPerDay;
+            rx1Tx2          += tx2PosLoraPerDay;
+            rx2Tx2          += tx2PosLoraPerDay;
+        }
+
+        // Short note describing dual TX mode for TX2 sub-rows
+        const tx2MixedNote = !hasTxStrat ? '' :
+            txDualStatic && txDualMotion ? 'dual TX — both modes' :
+            txDualStatic ? 'dual TX — static only' :
+            txDualMotion ? 'dual TX — motion only' : 'single TX (no duplicate)';
+        const tx2StaticNote = !hasTxStrat ? '' :
+            txDualStatic ? 'dual TX — static mode' : 'single TX (static)';
+        const tx2MotionNote = !hasTxStrat ? '' :
+            txDualMotion ? 'dual TX — motion mode' : 'single TX (motion)';
+
+        // ── RX window row (used in LoRa table body) ─────────────────────────
+        function mkRxRow(win, src, perDay, grey) {
+            const c = grey ? 'color:#ccc;' : '';
+            return `<tr style="background:#fafcfd;">
+                <td style="padding-left:10px; font-weight:bold; font-size:.82rem;
+                    color:${grey ? '#ccc' : '#006b7e'};">${win}</td>
+                <td style="${c} font-size:.77rem;">${src}</td>
+                <td class="right" style="${c} font-weight:bold;">${grey ? '—' : fmtR(perDay)}</td>
+                <td class="right" style="${c} font-weight:bold;">${grey ? '—' : fmtI(perDay * lifeDays)}</td></tr>`;
+        }
+
+        // ── TX pair helper ──────────────────────────────────────────────────
+        // Parent row is clickable; TX1/TX2 sub-rows are hidden by default.
+        // Falls back to a plain mkRow when hasTxStrat is false.
+        let _txpIdx = 0;
+        function mkTxPair(label, hint, tx1PD, tx2PD, state, tx2Note, indent = 0) {
+            if (!hasTxStrat) return mkRow(label, hint, tx1PD, state, indent);
+            const hPad  = `padding-left:${10 + indent * 16}px;`;
+            const subPL = 22 + indent * 16;
+            if (state === 'no-config') return `
+                <tr>
+                    <td style="${hPad} color:#b07800; font-weight:bold;">${label}</td>
+                    <td colspan="3" style="color:#b07800; font-size:.77rem; font-style:italic;">
+                        Load a config file to see probe parameters
+                    </td>
+                </tr>`;
+            if (state === 'disabled') return `
+                <tr>
+                    <td style="${hPad} color:#ccc; font-weight:bold;">${label}</td>
+                    <td colspan="3" style="color:#ccc; font-size:.77rem; font-style:italic;">disabled</td>
+                </tr>`;
+            const tx2None = tx2PD === 0;
+            const gid  = `txpg${_txpIdx++}`;
+            const sPad = `padding:1px 6px 1px ${subPL}px;`;
+            const sFont = 'font-size:.74rem;';
+            return `
+                <tr data-tx-toggle="${gid}" style="cursor:pointer; user-select:none;">
+                    <td style="${hPad} font-weight:bold;">${label}
+                        <span class="tx-tog" style="color:#008293; font-size:.68rem; margin-left:4px;">▸</span>
+                    </td>
+                    <td style="color:#666; font-size:.74rem;">${hint}</td>
+                    <td class="right" style="font-weight:bold;">${fmtR(tx1PD + tx2PD)}</td>
+                    <td class="right" style="font-weight:bold;">${fmtI((tx1PD + tx2PD) * lifeDays)}</td>
+                </tr>
+                <tr data-tx-group="${gid}" style="display:none; background:#f5fcfd;">
+                    <td style="${sPad} ${sFont} color:#006b7e; font-weight:700;">TX1</td>
+                    <td style="${sFont} color:#888;"></td>
+                    <td class="right" style="${sFont} font-weight:bold;">${fmtR(tx1PD)}</td>
+                    <td class="right" style="${sFont} font-weight:bold;">${fmtI(tx1PD * lifeDays)}</td>
+                </tr>
+                <tr data-tx-group="${gid}" style="display:none; background:#f5fcfd; border-bottom:1px solid #e6f4f6;">
+                    <td style="${sPad} ${sFont} font-weight:700; ${tx2None ? 'color:#bbb;' : 'color:#2a9faf;'}">TX2</td>
+                    <td style="${sFont} color:#888;">${tx2None ? '' : tx2Note}</td>
+                    <td class="right" style="${sFont} font-weight:bold; ${tx2None ? 'color:#bbb;' : ''}">${tx2None ? '—' : fmtR(tx2PD)}</td>
+                    <td class="right" style="${sFont} font-weight:bold; ${tx2None ? 'color:#bbb;' : ''}">${tx2None ? '—' : fmtI(tx2PD * lifeDays)}</td>
+                </tr>`;
+        }
+
+        // ── Build LoRa table rows ──────────────────────────────────────────
+        const loraStatusSubRows = statusTypes.map(t =>
+            mkTxPair(t, `1/${numStatusTypes} of total`, loraStatusPerTypePerDay, tx2StatusPerTypePD, statusState, tx2MixedNote, 1)
+        ).join('');
+
+        const lteStatusSubRows = statusTypes.map(t =>
+            mkRow(t, `1/${numStatusTypes} of total`, lteStatusPerTypePerDay, statusState, 1)
+        ).join('');
+
+        // ── TX Strategy bottom section: DR probability table ─────────────
+        let txStratHtml = '';
+        if (hasTxStrat) {
+            const tx1DRNote = txAdr
+                ? 'TX1 static: ADR percentages · TX1 motion: Byte 1 equal-prob · TX2: Byte 2 equal-prob'
+                : 'TX1: Byte 1 equal-prob across selected DRs · TX2: Byte 2 equal-prob';
+
+            // All 8 DRs always shown; active ones highlighted, unused greyed out
+            const allDRs = [0, 1, 2, 3, 4, 5, 6, 7];
+            const nCols = allDRs.length + 1; // +1 for TX label column
+            const colW = (100 / nCols).toFixed(2) + '%';
+            const cellBorder = 'border:1px solid #c9e8ed;';
+            const drHeaderCells = allDRs.map(i => {
+                const used = (tx1DRProbs[i] || 0) > 0.0001 || (tx2DRProbs[i] || 0) > 0.0001;
+                return `<th style="text-align:center; font-weight:bold; padding:5px 4px; width:${colW}; ${cellBorder} background:#e6f6f9; color:${used ? '#005f6b' : '#bbb'};">DR${i}</th>`;
+            }).join('');
+            const tx1Cells = allDRs.map(i => {
+                const p = tx1DRProbs[i] || 0;
+                const active = p > 0.0001;
+                return `<td style="text-align:center; font-weight:bold; color:${active ? '#006b7e' : '#ccc'}; padding:5px 4px; ${cellBorder} background:#f0f9fb;">${active ? (p*100).toFixed(1)+'%' : '—'}</td>`;
+            }).join('');
+            const tx2Cells = allDRs.map(i => {
+                const p = tx2DRProbs[i] || 0;
+                const active = p > 0.0001;
+                return `<td style="text-align:center; font-weight:bold; color:${active ? '#2a9faf' : '#ccc'}; padding:5px 4px; ${cellBorder} background:#fafcfd;">${active ? (p*100).toFixed(1)+'%' : '—'}</td>`;
+            }).join('');
+
+            txStratHtml = `
+            <div style="margin-top:14px; border-top:2px solid #d0eff4; padding-top:10px; display:block; width:100%;">
+                <div style="font-size:.78rem; font-weight:bold; color:#005f6b; margin-bottom:6px;">
+                    Data Rate Distribution
+                    ${txAdr ? '<span style="color:#2e7d32; font-size:.7rem; font-weight:normal;"> &nbsp;(ADR on)</span>' : ''}
+                </div>
+                <table style="width:100%; table-layout:fixed; border-collapse:collapse; border:1px solid #c9e8ed; border-radius:4px; overflow:hidden;">
+                    <thead><tr>
+                        <th style="text-align:left; padding:5px 8px; width:${colW}; ${cellBorder} background:#e6f6f9; color:#333;"></th>
+                        ${drHeaderCells}
+                    </tr></thead>
+                    <tbody>
+                        <tr>
+                            <td style="padding:5px 8px; font-weight:bold; color:#006b7e; font-size:.78rem; ${cellBorder} background:#f0f9fb;">TX1</td>
+                            ${tx1Cells}
+                        </tr>
+                        <tr>
+                            <td style="padding:5px 8px; font-weight:bold; color:${tx2TotalPerDay > 0 ? '#2a9faf' : '#bbb'}; font-size:.78rem; ${cellBorder} background:#fafcfd;">TX2</td>
+                            ${tx2Cells}
+                        </tr>
+                    </tbody>
+                </table>
+                <div style="font-size:.68rem; color:#aaa; margin-top:5px;">${tx1DRNote}</div>
+            </div>`;
+
+        } else if (cfgLoaded) {
+            txStratHtml = `<p style="font-size:.77rem; color:#b07800; margin-top:10px; padding:6px 10px;
+                background:#fffce6; border:1px solid #f0e68c; border-radius:4px;">
+                <code>lorawan_s1_tx_strategy</code> not found in config — DR distribution and RX window counts unavailable.
+            </p>`;
+        }
+
+        // ── Pre-computed position uplink HTML for both network tables ───────────
+        // posTotalPerDay = n = total geoloc triggers/day (invariant: constant regardless
+        // of failure probabilities — failure only redistributes which payload type is sent)
+        const _posTotal = posTotalPerDay;
+        function _mkPosSection(factor, scaledPerDay, scaledTx2PerDay, netPct, netName, useTxPair) {
+            if (!posScenarios || posScenarios.length === 0) return '';
+            const dS = hasTxStrat && txDualStatic ? 1 : 0;
+            const dM = hasTxStrat && txDualMotion ? 1 : 0;
+            const scenarioRows = posScenarios.map(s => {
+                const tx1PD = s.perDay * factor;
+                if (!useTxPair) return mkRow(s.label, 'position payload', tx1PD, 'active', 1);
+                const tx2PD = (s.perDayMotion * dM + s.perDayStatic * dS) * factor;
+                const hasM = dM > 0 && s.perDayMotion > 1e-9;
+                const hasS = dS > 0 && s.perDayStatic > 1e-9;
+                const note = (hasM && hasS) ? 'dual TX — both modes' :
+                              hasM           ? 'dual TX — motion mode' :
+                              hasS           ? 'dual TX — static mode' : tx2MixedNote;
+                return mkTxPair(s.label, 'position payload', tx1PD, tx2PD, 'active', note, 1);
+            }).join('');
+            const subHdr = mkSubHeader(
+                'Position Uplinks &nbsp;<small style="font-weight:normal;">' +
+                '(geoloc profiles &mdash; 1 combined uplink per trigger &mdash; ' +
+                'n&thinsp;=&thinsp;' + fmtR(_posTotal) + '&thinsp;/day)</small>'
+            );
+            const totalDisplay = scaledPerDay + scaledTx2PerDay;
+            const hintStr = (useTxPair && scaledTx2PerDay > 0)
+                ? 'TX1:&thinsp;' + fmtR(scaledPerDay) + '&thinsp;+&thinsp;TX2:&thinsp;' + fmtR(scaledTx2PerDay)
+                : fmtR(_posTotal) + '&thinsp;pos/day &times; ' + netPct + '%&thinsp;' + netName;
+            const subTotal =
+                '<tr style="background:#f0f9fb; border-top:1px solid #c5e5ea;">' +
+                  '<td style="padding:4px 10px 4px 26px; font-weight:bold; color:#005f6b; font-size:.82rem;">' +
+                    '&#x21B3; Position subtotal' +
+                  '</td>' +
+                  '<td style="color:#888; font-size:.75rem;">' + hintStr + '</td>' +
+                  '<td class="right" style="font-weight:bold; color:#005f6b;">' + fmtR(totalDisplay) + '</td>' +
+                  '<td class="right" style="font-weight:bold; color:#005f6b;">' + fmtI(totalDisplay * lifeDays) + '</td>' +
+                '</tr>';
+            return subHdr + scenarioRows + subTotal;
+        }
+        const loraPosSection = _mkPosSection(loraFactor, posLoraPerDay, tx2PosLoraPerDay, loraUsagePct, 'LoRa', hasTxStrat);
+        const ltePosSection  = _mkPosSection(lteFactor,  posLtePerDay,  0,                lteUsagePct,  'LTE',  false);
+
+        content.innerHTML = `
+            <div style="display:flex; flex-flow:row wrap; gap:16px;">
+
+                <!-- ── LoRa Network block ──────────────────────────────── -->
+                <div style="flex:1; min-width:310px;">
+                    <table class="geoloc-stats-table">
+                        <thead>
+                            <tr>
+                                <th colspan="4" style="background:#005f6b; color:#fff; text-align:left;
+                                    padding:7px 10px; font-size:.88rem;">
+                                    LoRa Network &nbsp;·&nbsp;
+                                    <span style="font-weight:normal;">${loraUsagePct}% of device lifetime</span>
+                                    ${hasTxStrat ? `&nbsp;·&nbsp; <span style="font-weight:normal; font-size:.8rem;">
+                                        lorawan_s1_tx_strategy = ${txStratRawParsed}
+                                        &nbsp;(${txDualStatic && txDualMotion ? 'Dual TX both'
+                                              : txDualStatic ? 'Dual TX static' : txDualMotion ? 'Dual TX motion' : 'Single TX'}
+                                        ${txAdr ? '· ADR' : ''})</span>` : ''}
+                                </th>
+                            </tr>
+                            ${mkTableHead()}
+                        </thead>
+                        <tbody>
+                            ${mkSubHeader('Status Messages &nbsp;<small style="font-weight:normal;">(sent equally across all types)</small>')}
+                            ${loraStatusSubRows}
+                            ${mkSubHeader('Heartbeat &nbsp;<small style="font-weight:normal;">(LoRa only)</small>')}
+                            ${mkTxPair('Heartbeat', hbHint, loraHbPerDay, tx2HbPerDay, hbState, tx2MixedNote)}
+                            ${mkSubHeader('LoRa Probing &nbsp;<small style="font-weight:normal;">(state-weighted)</small>')}
+                            ${mkTxPair('Probe — static', loraProbeStaticHint, loraProbeStaticPerDay, tx2ProbeStaticPerDay, loraProbeStaticState, tx2StaticNote)}
+                            ${mkTxPair('Probe — motion', loraProbeMotionHint, loraProbeMotionPerDay, tx2ProbeMotionPerDay, loraProbeMotionState, tx2MotionNote)}
+                            ${loraPosSection}
+                            ${hasTxStrat
+                                ? (() => { const tg = `txpg${_txpIdx++}`; return `
+                                   <tr data-tx-toggle="${tg}" style="border-top:2px solid #ccc; cursor:pointer; user-select:none;">
+                                    <td colspan="2" style="font-weight:bold; padding:5px 10px; color:#333;">LoRa Total
+                                        <span class="tx-tog" style="color:#008293; font-size:.68rem; margin-left:4px;">▸</span>
+                                    </td>
+                                    <td class="right" style="font-weight:bold;">${fmtR(loraDisplayTotal + tx2TotalPerDay)}</td>
+                                    <td class="right" style="font-weight:bold;">${fmtI((loraDisplayTotal + tx2TotalPerDay) * lifeDays)}</td>
+                                   </tr>
+                                   <tr data-tx-group="${tg}" style="display:none; background:#f5fcfd;">
+                                    <td style="padding:1px 6px 1px 28px; font-size:.74rem; color:#006b7e; font-weight:700;">TX1</td>
+                                    <td style="font-size:.74rem;"></td>
+                                    <td class="right" style="font-size:.74rem; font-weight:bold;">${fmtR(loraDisplayTotal)}</td>
+                                    <td class="right" style="font-size:.74rem; font-weight:bold; color:#005f6b;">${fmtI(loraDisplayTotal * lifeDays)}</td>
+                                   </tr>
+                                   <tr data-tx-group="${tg}" style="display:none; background:#f5fcfd; border-bottom:1px solid #e6f4f6;">
+                                    <td style="padding:1px 6px 1px 28px; font-size:.74rem; font-weight:700; ${tx2TotalPerDay===0 ? 'color:#bbb;' : 'color:#2a9faf;'}">TX2</td>
+                                    <td style="font-size:.74rem; color:#888;">${tx2TotalPerDay===0 ? '' : tx2MixedNote}</td>
+                                    <td class="right" style="font-size:.74rem; font-weight:bold; ${tx2TotalPerDay===0 ? 'color:#bbb;' : ''}">${tx2TotalPerDay===0 ? '—' : fmtR(tx2TotalPerDay)}</td>
+                                    <td class="right" style="font-size:.74rem; font-weight:bold; ${tx2TotalPerDay===0 ? 'color:#bbb;' : 'color:#005f6b;'}">${tx2TotalPerDay===0 ? '—' : fmtI(tx2TotalPerDay * lifeDays)}</td>
+                                   </tr>`; })()
+                                : mkTotalRow('LoRa total', loraDisplayTotal, '#005f6b')}
+                            ${hasTxStrat ? (() => { const rg = `txpg${_txpIdx++}`; return `
+                            <tr data-tx-toggle="${rg}" style="cursor:pointer; user-select:none; background:#f4f9fa; border-top:1px solid #dde; border-bottom:1px solid #dde;">
+                                <td style="padding:4px 10px; color:#008293; font-size:.77rem; font-weight:bold;">
+                                    RX Windows
+                                    <span class="tx-tog" style="color:#008293; font-size:.68rem; margin-left:4px;">▸</span>
+                                </td>
+                                <td style="font-size:.73rem; color:#666;">1 × RX1 + 1 × RX2 per TX</td>
+                                <td class="right" style="font-weight:bold;">${fmtR(rx1Tx1+rx1Tx2+rx2Tx1+rx2Tx2)}</td>
+                                <td class="right" style="font-weight:bold;">${fmtI((rx1Tx1+rx1Tx2+rx2Tx1+rx2Tx2)*lifeDays)}</td>
+                            </tr>
+                            <tr data-tx-group="${rg}" style="display:none; background:#fafcfd;">
+                                <td style="padding-left:10px; font-weight:bold; font-size:.82rem; color:#006b7e;">RX1</td>
+                                <td style="font-size:.73rem; color:#666;">TX1: <strong>${fmtR(rx1Tx1)}</strong>/d${rx1Tx2 > 0 ? ' &thinsp;·&thinsp; TX2: <strong>'+fmtR(rx1Tx2)+'</strong>/d' : ''}</td>
+                                <td class="right" style="font-weight:bold;">${fmtR(rx1Tx1 + rx1Tx2)}</td>
+                                <td class="right" style="font-weight:bold;">${fmtI((rx1Tx1 + rx1Tx2) * lifeDays)}</td>
+                            </tr>
+                            <tr data-tx-group="${rg}" style="display:none; background:#fafcfd;">
+                                <td style="padding-left:10px; font-weight:bold; font-size:.82rem; color:#006b7e;">RX2</td>
+                                <td style="font-size:.73rem; color:#666;">TX1: <strong>${fmtR(rx2Tx1)}</strong>/d${rx2Tx2 > 0 ? ' &thinsp;·&thinsp; TX2: <strong>'+fmtR(rx2Tx2)+'</strong>/d' : ''}</td>
+                                <td class="right" style="font-weight:bold;">${fmtR(rx2Tx1 + rx2Tx2)}</td>
+                                <td class="right" style="font-weight:bold;">${fmtI((rx2Tx1 + rx2Tx2) * lifeDays)}</td>
+                            </tr>
+                            <tr data-tx-group="${rg}" style="display:none; border-top:1px solid #c5e8ed;">
+                                <td colspan="2" style="font-weight:bold; padding:5px 10px; color:#333; font-size:.82rem;">RX Total</td>
+                                <td class="right" style="font-weight:bold;">${fmtR(rx1Tx1+rx1Tx2+rx2Tx1+rx2Tx2)}</td>
+                                <td class="right" style="font-weight:bold; color:#005f6b;">${fmtI((rx1Tx1+rx1Tx2+rx2Tx1+rx2Tx2)*lifeDays)}</td>
+                            </tr>`; })() : ''}
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- ── LTE / Cellular block ──────────────────────────────── -->
+                <div style="flex:1; min-width:310px;${lteFactor === 0 ? ' opacity:.50;' : ''}">
+                    <table class="geoloc-stats-table">
+                        <thead>
+                            <tr>
+                                <th colspan="4" style="background:#1e5f7a; color:#fff; text-align:left;
+                                    padding:7px 10px; font-size:.88rem;">
+                                    LTE / Cellular Network &nbsp;·&nbsp;
+                                    <span style="font-weight:normal;">${lteUsagePct}% of device lifetime${!isCombo ? ' &nbsp;·&nbsp; Combo Tracker only' : ''}</span>
+                                </th>
+                            </tr>
+                            ${mkTableHead()}
+                        </thead>
+                        <tbody>
+                            ${mkSubHeader('Status Messages &nbsp;<small style="font-weight:normal;">(all types sent equally)</small>')}
+                            ${mkRow('All types combined', statusHint, lteStatusPerDay, statusState)}
+                            ${lteStatusSubRows}
+                            ${mkSubHeader('LTE Probing &nbsp;<small style="font-weight:normal;">(independent of device state)</small>')}
+                            ${mkRow('Probe', lteProbeHint, lteProbePerDay, lteProbeState)}
+                            ${ltePosSection}
+                            ${mkTotalRow('LTE uplinks total', lteDisplayTotal, '#1e5f7a')}
+                        </tbody>
+                    </table>
+                </div>
+
+            </div>
+            ${isCombo ? '<p style="font-size:.77rem; color:#555; margin-top:5px; margin-bottom:0;">Status 3 is only available on Combo Tracker boards.</p>' : ''}
+            ${!cfgLoaded ? `<p style="font-size:.77rem; color:#b07800; margin-top:6px; margin-bottom:0;">
+                Load a device config file to populate probe parameters
+                (<code>lorawan_probe_period_static</code>, <code>lorawan_probe_max_attempts_static</code>,
+                <code>lorawan_probe_period_motion</code>, <code>lorawan_probe_max_attempts_motion</code>,
+                <code>cell_probe_period</code>, <code>cell_max_probe_attempts</code>).
+            </p>` : ''}
+            ${txStratHtml}`;
+
+        // ── Delegated click handler for TX1/TX2 toggle rows ─────────────
+        if (content._txToggleHandler)
+            content.removeEventListener('click', content._txToggleHandler);
+        content._txToggleHandler = function(e) {
+            const tr = e.target.closest('tr[data-tx-toggle]');
+            if (!tr) return;
+            const gid  = tr.getAttribute('data-tx-toggle');
+            const subs = content.querySelectorAll(`tr[data-tx-group="${gid}"]`);
+            const open = subs.length > 0 && subs[0].style.display !== 'none';
+            subs.forEach(r => r.style.display = open ? 'none' : '');
+            const tog = tr.querySelector('.tx-tog');
+            if (tog) tog.textContent = open ? '▸' : '▾';
+        };
+        content.addEventListener('click', content._txToggleHandler);
+
+        // Store for PDF report
+        window.lastUplinksData = {
+            loraUsagePct, lteUsagePct, lifeDays, isCombo, numStatusTypes, statusTypes,
+            loraStatusPerDay, loraStatusPerTypePerDay, loraHbPerDay,
+            loraProbeStaticPerDay, loraProbeMotionPerDay, loraTotalPerDay,
+            loraProbeStaticState, loraProbeMotionState,
+            loraProbeStaticHint, loraProbeMotionHint,
+            lteStatusPerDay, lteStatusPerTypePerDay, lteProbePerDay, lteTotalPerDay,
+            lteProbeState, lteProbeHint,
+            statusHint, hbHint, statusState, hbState,
+            cfgLoaded,
+            // TX strategy & TX2
+            hasTxStrat, txAdr, txDualStatic, txDualMotion,
+            txStratRawParsed: hasTxStrat ? txStratRawParsed : null,
+            tx2StatusPerDay, tx2HbPerDay, tx2ProbeStaticPerDay, tx2ProbeMotionPerDay,
+            tx2TotalPerDay, tx2StatusPerTypePD,
+            tx2MixedNote, tx2StaticNote, tx2MotionNote,
+            // DR distribution
+            tx1DRProbs: [...tx1DRProbs],
+            tx2DRProbs: [...tx2DRProbs],
+            // RX windows
+            rx1Tx1, rx2Tx1, rx1Tx2, rx2Tx2,
+            // Position uplinks (scenario-based, with dual-TX split)
+            posScenarios, posTotalPerDay, posTotalMotionPerDay, posTotalStaticPerDay,
+            posLoraPerDay, posLtePerDay, tx2PosLoraPerDay,
+            loraDisplayTotal, lteDisplayTotal,
+        };
     }
 
     /***********************************************************************
@@ -1277,6 +2370,120 @@
             probs.push(p);
         }
         return probs;
+    }
+
+    /***********************************************************************
+     * Enumerate position uplink scenarios from active geolocation profiles.
+     *
+     * One uplink is sent per profile trigger. Its payload depends on which
+     * technologies ran and their outcomes:
+     *   - WiFi / BLE: always produce a label (success or failure)
+     *   - GNSS / LP-GPS: produce a label only on a successful fix
+     *   - AGNSS: always produces a label
+     *
+     * Execution rules (slot chain):
+     *   - Slot 0 always runs.
+     *   - "Always Done" slot: always runs regardless of previous result.
+     *   - Conditional slot: runs only if the immediately preceding slot failed.
+     *
+     * Returns an array of { label, perDayMotion, perDayStatic, perDay } sorted by count
+     * descending, where label is the combined payload description (e.g. "WiFi(failure) + GNSS").
+     * perDayMotion / perDayStatic allow the caller to apply dual-TX strategy per mode.
+     ***********************************************************************/
+    function computePositionUplinks() {
+        if (!window.geolocProfiles || window.geolocProfiles.length === 0) return null;
+
+        const cfg          = window.deviceConfig || {};
+        const motionPeriod = parseFloat(cfg.geoloc_motion_period) || 300;
+        const staticPeriod = parseFloat(cfg.geoloc_static_period) || 3600;
+        const _mPctP       = parseFloat(document.getElementById('motion_pct').value);
+        const motionFrac   = (isNaN(_mPctP) ? 50 : _mPctP) / 100;
+
+        // Payload label for a given technology and outcome.
+        // Every technology always produces a label (success or failure) so that the full
+        // chain history is preserved — e.g. "WiFi(failure) + GNSS(no fix) + BLE Scan 1(success)".
+        function slotLabel(technoCode, success) {
+            switch (technoCode) {
+                case 0x02: return success ? 'WiFi(success)'         : 'WiFi(failure)';
+                case 0x03: return success ? 'BLE Scan 1(success)'   : 'BLE Scan 1(failure)';
+                case 0x04: return success ? 'BLE Scan 2(success)'   : 'BLE Scan 2(failure)';
+                case 0x06: return success ? 'GNSS'                  : 'GNSS(no fix)';
+                case 0x05: return success ? 'LP-GPS'                : 'LP-GPS(no fix)';
+                case 0x01: return success ? 'AGNSS'                 : 'AGNSS(no fix)';
+                default:   return null;
+            }
+        }
+
+        const scenarioMap = {};  // label → { m: motionPerDay, s: staticPerDay }
+
+        for (const profile of window.geolocProfiles) {
+            const bm     = profile.triggers;
+            const motion = (bm & 0x10) ? motionFrac       * (86400 / motionPeriod) : 0;
+            const statc  = (bm & 0x20) ? (1 - motionFrac) * (86400 / staticPeriod) : 0;
+            const tpd    = motion + statc;
+            if (tpd <= 0) continue;
+
+            // Resolve failure probabilities for each slot upfront
+            const slots = profile.slots.map(slot => {
+                const el = document.getElementById(
+                    `geoloc_p${profile.profileIndex}_s${slot.slotIndex}_fail_pct`);
+                return { ...slot, failPct: el ? (parseFloat(el.value) || 0) : 0 };
+            });
+            const n = slots.length;
+
+            // After slot idx SUCCEEDS: jump to next always-done slot (skip conditional ones)
+            function nextAfterSuccess(idx) {
+                for (let j = idx + 1; j < n; j++) {
+                    if (slots[j].alwaysDone) return j;
+                }
+                return n;  // end of chain
+            }
+
+            // After slot idx FAILS: next slot (idx+1) always runs
+            function nextAfterFailure(idx) { return idx + 1; }
+
+            // Recursive DFS over the slot chain; labelParts accumulates payload pieces.
+            function enumerate(idx, labelParts, prob) {
+                if (idx >= n || prob < 1e-9) {
+                    const label = labelParts.join(' + ');
+                    if (label) {
+                        if (!scenarioMap[label]) scenarioMap[label] = { m: 0, s: 0 };
+                        scenarioMap[label].m += prob * motion;
+                        scenarioMap[label].s += prob * statc;
+                    }
+                    return;
+                }
+                const slot = slots[idx];
+                const sf   = (100 - slot.failPct) / 100;
+                const ff   = slot.failPct / 100;
+
+                // Success branch
+                const lOk = slotLabel(slot.technoCode, true);
+                enumerate(nextAfterSuccess(idx),
+                          lOk ? [...labelParts, lOk] : labelParts,
+                          prob * sf);
+
+                // Failure branch (skip if fail probability is zero)
+                if (ff > 1e-9) {
+                    const lFail = slotLabel(slot.technoCode, false);
+                    enumerate(nextAfterFailure(idx),
+                              lFail ? [...labelParts, lFail] : labelParts,
+                              prob * ff);
+                }
+            }
+
+            enumerate(0, [], 1.0);
+        }
+
+        return Object.entries(scenarioMap)
+            .map(([label, { m, s }]) => ({
+                label,
+                perDayMotion: m,
+                perDayStatic: s,
+                perDay: m + s,
+            }))
+            .filter(s => s.perDay > 1e-6)
+            .sort((a, b) => b.perDay - a.perDay);
     }
 
     /***********************************************************************
@@ -1321,16 +2528,25 @@
                 if (useProfiles) {
                     const { technoMsg } = computeGeolocFromProfiles();
                     return {
-                        gps:  { nof_msg_per_day: technoMsg.gnss.nof + technoMsg.lpgps.nof,
-                                ttff: technoMsg.gnss.ttff || technoMsg.lpgps.ttff,
-                                conv_time: technoMsg.gnss.conv || technoMsg.lpgps.conv },
+                        gps:  { gnss_current_ma: technoMsg.gnss.current_ma + technoMsg.lpgps.current_ma,
+                                nof_msg_per_day: technoMsg.gnss.nof_success + technoMsg.lpgps.nof_success },
                         agps: { nof_msg_per_day: technoMsg.agnss.nof,
                                 on_time: technoMsg.agnss.on_time,
                                 nof_satellites: technoMsg.agnss.nb_sat },
                         wifi: { nof_msg_per_day: technoMsg.wifi.nof,
                                 nof_bssid: technoMsg.wifi.nb_ap },
-                        ble:  { nof_msg_per_day: technoMsg.ble.nof,
-                                nof_beaconid: technoMsg.ble.nb_beacons },
+                        ble:  {
+                                // combined totals kept for LoRa-uplink fallback & manual mode
+                                nof_msg_per_day: technoMsg.ble1.nof + technoMsg.ble2.nof,
+                                nof_beaconid:    technoMsg.ble1.nb_beacons || technoMsg.ble2.nb_beacons || 4,
+                                // per-scan-type breakdown: separate HW duration → separate scan current
+                                ble1: { nof_msg_per_day: technoMsg.ble1.nof,
+                                        scan_duration_s:  technoMsg.ble1.scan_dur_ms / 1000,
+                                        nof_beaconid:     technoMsg.ble1.nb_beacons },
+                                ble2: { nof_msg_per_day: technoMsg.ble2.nof,
+                                        scan_duration_s:  technoMsg.ble2.scan_dur_ms / 1000,
+                                        nof_beaconid:     technoMsg.ble2.nb_beacons },
+                              },
                     };
                 }
                 return {
@@ -1354,6 +2570,8 @@
                 nof_msg_per_day: 0,
                 tech: 'BLE', idtype: 'MAC', max_payl_len: 92, nof_id: 0,
             },
+            net_usage_lora_pct:     parseFloat(document.getElementById('net_usage_lora_pct').value)     || 0,
+            net_usage_cellular_pct: parseFloat(document.getElementById('net_usage_cellular_pct').value) || 0,
             cellular: (function() {
                 const isCombo = document.getElementById('product').value === 'combo_tracker';
                 return {
@@ -1378,6 +2596,7 @@
         const geolocData = useProfiles ? computeGeolocFromProfiles() : null;
         renderGeolocStats(geolocData, result.battery_life_days);
         renderCpuStats(result, input);
+        renderUplinksStats(result, input);
 
         // Store for report generation
         window.lastResult      = result;
@@ -1390,19 +2609,95 @@
         document.getElementById('kpi_capacity').textContent             = Math.round(result.battery.capacity_mah);
         document.getElementById('kpi_annual_discharge_mah').textContent = result.battery.annual_discharge_mah;
 
-        // ── Build single-ring disk data (components only) ────────────────
-        const diskData   = [], diskColors = [], diskLabels = [], diskKeys = [];
-
+        // ── Build group-level doughnut chart ─────────────────────────────
+        const diskData = [], diskColors = [], diskLabels = [];
         GROUPS.forEach(g => {
-            g.components.forEach(c => {
-                const compUa  = (result.components_ma[c.key] || 0) * 1000;
-                const compPct = totalUa > 0 ? (compUa / totalUa * 100) : 0;
-                diskData.push(compPct);
-                diskColors.push(c.color);
-                diskLabels.push(c.label);
-                diskKeys.push(c.key);
-            });
+            const gMa  = getGroupTotal(g, result);
+            const gPct = totalUa > 0 ? gMa * 1000 / totalUa * 100 : 0;
+            diskData.push(gPct);
+            diskColors.push(g.color);
+            diskLabels.push(g.label);
         });
+
+        // ── Outside-label plugin: sticks + text around the doughnut ─────────
+        const outsideLabelPlugin = {
+            id: 'outsideLabels',
+            afterDatasetsDraw(chart) {
+                const { ctx, data } = chart;
+                const meta = chart.getDatasetMeta(0);
+                if (!meta.data.length) return;
+
+                const cx = meta.data[0].x;
+                const cy = meta.data[0].y;
+                const outerR = meta.data[0].outerRadius;
+                const innerR = meta.data[0].innerRadius;
+                const midR   = (innerR + outerR) * 0.6; // start point inside the ring
+
+                // Build items, skip negligible slices
+                const items = meta.data.map((arc, i) => {
+                    const pct = data.datasets[0].data[i];
+                    if (pct < 0.3) return null;
+                    const angle = (arc.startAngle + arc.endAngle) / 2;
+                    const ny = cy + Math.sin(angle) * (outerR + 20);
+                    return {
+                        i, angle, pct,
+                        label: data.labels[i],
+                        color: data.datasets[0].backgroundColor[i],
+                        isRight: Math.cos(angle) >= 0,
+                        naturalY: ny, y: ny,
+                    };
+                }).filter(Boolean);
+
+                const FONT_SIZE = 11.5;
+                const SPACING   = FONT_SIZE * 1.8;
+                function spread(group) {
+                    group.sort((a, b) => a.naturalY - b.naturalY);
+                    for (let iter = 0; iter < 60; iter++) {
+                        let moved = false;
+                        for (let k = 1; k < group.length; k++) {
+                            if (group[k].y - group[k-1].y < SPACING) {
+                                const mid = (group[k].y + group[k-1].y) / 2;
+                                group[k-1].y = mid - SPACING / 2;
+                                group[k].y   = mid + SPACING / 2;
+                                moved = true;
+                            }
+                        }
+                        if (!moved) break;
+                    }
+                }
+                spread(items.filter(i => i.isRight));
+                spread(items.filter(i => !i.isRight));
+
+                ctx.save();
+                items.forEach(item => {
+                    const sx = cx + Math.cos(item.angle) * midR;
+                    const sy = cy + Math.sin(item.angle) * midR;
+                    const side = item.isRight ? 1 : -1;
+                    const ex = cx + side * (outerR + 22);
+                    const ey = item.y;
+                    const shelfX = cx + side * (outerR + 38);
+
+                    // Stick: arc → elbow → horizontal shelf
+                    ctx.beginPath();
+                    ctx.moveTo(sx, sy);
+                    ctx.lineTo(ex, ey);
+                    ctx.lineTo(shelfX, ey);
+                    ctx.strokeStyle = item.color;
+                    ctx.lineWidth = 1.5;
+                    ctx.stroke();
+
+
+                    // Label text: "Group Name  XX.X%" — bold, in segment color
+                    const textX = item.isRight ? shelfX + 5 : shelfX - 5;
+                    ctx.textBaseline = 'middle';
+                    ctx.textAlign = item.isRight ? 'left' : 'right';
+                    ctx.font = `bold ${FONT_SIZE}px Arial, sans-serif`;
+                    ctx.fillStyle = item.color;
+                    ctx.fillText(`${item.label}  ${item.pct.toFixed(1)}%`, textX, ey);
+                });
+                ctx.restore();
+            }
+        };
 
         if (sunburstChart) sunburstChart.destroy();
         sunburstChart = new Chart(
@@ -1419,77 +2714,93 @@
                     }]
                 },
                 options: {
-                    cutout: '52%',
+                    responsive: false,
+                    layout: { padding: { left: 170, right: 170, top: 14, bottom: 14 } },
+                    cutout: '46%',
                     plugins: {
                         legend: { display: false },
                         tooltip: {
+                            bodyFont: { size: 12 },
+                            titleFont: { size: 12, weight: 'bold' },
                             callbacks: {
                                 title: ctx => ctx[0].label,
                                 label: ctx => {
-                                    const key = diskKeys[ctx.dataIndex];
-                                    const mah = ((result.components_ma[key] || 0) * result.battery_life_days * 24).toFixed(1);
+                                    const g   = GROUPS[ctx.dataIndex];
+                                    const mah = (getGroupTotal(g, result) * result.battery_life_days * 24).toFixed(1);
                                     return ` ${mah} mAh  (${ctx.parsed.toFixed(1)}%)`;
                                 }
                             }
                         }
                     }
-                }
+                },
+                plugins: [outsideLabelPlugin],
             }
         );
 
-        // ── Build rich legend ─────────────────────────────────────────────
+        // ── Build collapsible legend ──────────────────────────────────────
         const tbody = document.getElementById('legend-tbody');
         tbody.innerHTML = '';
 
         const lifetimeH = result.battery_life_days * 24;
-        const fmtMah = v => (v * lifetimeH).toFixed(1);
+        const fmtMah    = v => (v * lifetimeH).toFixed(1);
 
         GROUPS.forEach(g => {
-            const groupMah = fmtMah(result.group_currents_ma[g.key] || 0);
-            const groupPct = totalUa > 0
-                ? ((result.group_currents_ma[g.key] || 0) * 1000 / totalUa * 100).toFixed(1)
-                : '0.0';
+            const gMa  = getGroupTotal(g, result);
+            const gMah = fmtMah(gMa);
+            const gPct = totalUa > 0 ? (gMa * 1000 / totalUa * 100).toFixed(1) : '0.0';
+            const children = getGroupChildren(g, result);
 
+            // Group header row (collapsed by default, click to toggle)
             const gRow = document.createElement('tr');
             gRow.className = 'group-row';
             gRow.innerHTML = `
                 <td>
+                    <span class="group-chevron">&#9654;</span>
                     <span class="legend-swatch" style="background:${g.color};"></span>
                     ${g.label}
                 </td>
-                <td class="right">${groupMah}</td>
-                <td class="right">${groupPct}%</td>
+                <td class="right">${gMah}</td>
+                <td class="right">${gPct}%</td>
                 <td>
                     <div class="pct-bar-wrap">
-                        <div class="pct-bar-fill" style="width:${groupPct}%;background:${g.color};"></div>
+                        <div class="pct-bar-fill" style="width:${gPct}%;background:${g.color};"></div>
                     </div>
                 </td>`;
             tbody.appendChild(gRow);
 
-            g.components.forEach(c => {
-                const compMah = fmtMah(result.components_ma[c.key] || 0);
-                const compPct = totalUa > 0
-                    ? ((result.components_ma[c.key] || 0) * 1000 / totalUa * 100).toFixed(1)
-                    : '0.0';
+            // Child rows (hidden by default)
+            const childRows = [];
+            children.forEach(c => {
+                const cMa  = getChildValue(c, result);
+                const cMah = fmtMah(cMa);
+                const cPct = totalUa > 0 ? (cMa * 1000 / totalUa * 100).toFixed(1) : '0.0';
                 const cRow = document.createElement('tr');
                 cRow.className = 'comp-row';
+                cRow.style.display = 'none';
                 cRow.innerHTML = `
                     <td>
                         <span class="legend-swatch" style="background:${c.color};"></span>
                         ${c.label}
                     </td>
-                    <td class="right">${compMah}</td>
-                    <td class="right">${compPct}%</td>
+                    <td class="right">${cMah}</td>
+                    <td class="right">${cPct}%</td>
                     <td>
                         <div class="pct-bar-wrap">
-                            <div class="pct-bar-fill" style="width:${compPct}%;background:${c.color};"></div>
+                            <div class="pct-bar-fill" style="width:${cPct}%;background:${c.color};"></div>
                         </div>
                     </td>`;
                 tbody.appendChild(cRow);
+                childRows.push(cRow);
+            });
+
+            // Toggle on click
+            gRow.addEventListener('click', () => {
+                const expanded = gRow.classList.toggle('expanded');
+                childRows.forEach(r => r.style.display = expanded ? 'table-row' : 'none');
             });
         });
 
-        // Total row — total mAh = battery capacity by definition
+        // Total row
         const totalRow = document.createElement('tr');
         totalRow.innerHTML = `
             <td style="font-weight:bold; padding:6px 10px; border-top:2px solid #aaa;">Total</td>
@@ -1518,7 +2829,6 @@
         const geoData     = window.lastGeolocStats;
         const totalUa     = result.total_current_ma * 1000;
         const now         = new Date().toLocaleString();
-        const chartImg    = document.getElementById('sunburstChart').toDataURL('image/png');
         const productEl   = document.getElementById('product');
         const productName = productEl.options[productEl.selectedIndex].text;
         const configFile  = window.lastConfigFileName || 'Manual configuration';
@@ -1529,27 +2839,107 @@
         const mPct   = document.getElementById('motion_pct').value;
         const sPct   = document.getElementById('static_pct').value;
 
+        // ── Clean PDF doughnut image (no padding, no outside labels) ─────
+        const pdfChartImg = (() => {
+            const SIZE = 300;
+            const tmp  = document.createElement('canvas');
+            tmp.width  = SIZE;
+            tmp.height = SIZE;
+            const c2   = tmp.getContext('2d');
+            const cx   = SIZE / 2, cy = SIZE / 2;
+            const outerR = SIZE / 2 - 4;
+            const innerR = outerR * 0.46;
+
+            const vals = [], cols = [];
+            GROUPS.forEach(g => {
+                vals.push(totalUa > 0 ? getGroupTotal(g, result) * 1000 / totalUa * 100 : 0);
+                cols.push(g.color);
+            });
+            const total = vals.reduce((s, v) => s + v, 0) || 1;
+
+            // Draw filled segments
+            let a = -Math.PI / 2;
+            vals.forEach((v, i) => {
+                const sweep = (v / total) * 2 * Math.PI;
+                c2.beginPath();
+                c2.moveTo(cx, cy);
+                c2.arc(cx, cy, outerR, a, a + sweep);
+                c2.closePath();
+                c2.fillStyle = cols[i];
+                c2.fill();
+                a += sweep;
+            });
+
+            // White dividers
+            a = -Math.PI / 2;
+            vals.forEach(v => {
+                const sweep = (v / total) * 2 * Math.PI;
+                c2.beginPath();
+                c2.moveTo(cx, cy);
+                c2.arc(cx, cy, outerR, a, a + sweep);
+                c2.closePath();
+                c2.strokeStyle = '#fff';
+                c2.lineWidth = 3;
+                c2.stroke();
+                a += sweep;
+            });
+
+            // Donut hole
+            c2.beginPath();
+            c2.arc(cx, cy, innerR, 0, 2 * Math.PI);
+            c2.fillStyle = '#fff';
+            c2.fill();
+
+            return tmp.toDataURL('image/png');
+        })();
+
         // ── Helpers ──────────────────────────────────────────────────────
-        const th = (text) => ({ text, bold: true, fillColor: TEAL, color: '#fff',
-                                 fontSize: 7, margin: [2, 3, 2, 3] });
+        const th = (text, opts = {}) => ({ text, bold: true, fillColor: TEAL, color: '#fff',
+                                 fontSize: 7, margin: [2, 3, 2, 3], ...opts });
         const td = (text, opts = {}) => ({ text: String(text), fontSize: 7,
                                            margin: [2, 2, 2, 2], ...opts });
 
-        // ── KPI row helper (3 cards per row) ─────────────────────────────
-        const kpiCard = (val, unit, label) => ({
-            stack: [
-                { text: String(val), fontSize: 15, bold: true, color: TEAL, alignment: 'center' },
-                { text: unit,  fontSize: 6.5, color: '#666', alignment: 'center' },
-                { text: label, fontSize: 6.5, bold: true, color: '#444', alignment: 'center' },
-            ],
-            width: '*',
+        // Section header banner (full-width teal bar)
+        const sectionHeader = (text, accent = TEAL) => ({
+            table: { widths: ['*'], body: [[{
+                text, bold: true, fontSize: 9.5, color: '#fff',
+                fillColor: accent, margin: [8, 5, 8, 5],
+            }]]},
+            layout: 'noBorders',
+            margin: [0, 14, 0, 5],
         });
 
-        const kpiRow = (cards) => ({
-            columns: cards,
-            columnGap: 6,
-            margin: [0, 2, 0, 2],
+        // Subsection header (lighter bar)
+        const subHeader = (text, accent = '#3a8fa0') => ({
+            table: { widths: ['*'], body: [[{
+                text, bold: true, fontSize: 8, color: '#fff',
+                fillColor: accent, margin: [6, 3, 6, 3],
+            }]]},
+            layout: 'noBorders',
+            margin: [0, 6, 0, 3],
         });
+
+        // ── KPI cards ─────────────────────────────────────────────────────
+        const kpiCard = (val, unit, label, accent = TEAL) => ({
+            stack: [
+                { text: String(val), fontSize: 17, bold: true, color: accent, alignment: 'center', margin: [0, 5, 0, 0] },
+                { text: unit,  fontSize: 6,   color: '#999', alignment: 'center' },
+                { canvas: [{ type: 'line', x1: 10, y1: 3, x2: 90, y2: 3, lineWidth: 0.5, lineColor: '#c9e8ed' }], margin: [0,2,0,2] },
+                { text: label, fontSize: 6.5, bold: true, color: '#555', alignment: 'center', margin: [0, 0, 0, 5] },
+            ],
+        });
+
+        const kpiRow = (cards) => {
+            const cells = cards.map(c => ({ stack: c.stack, fillColor: '#f4fbfc' }));
+            return {
+                table: { widths: cards.map(() => '*'), body: [cells] },
+                layout: {
+                    hLineWidth: () => 0.5, vLineWidth: () => 0.5,
+                    hLineColor: () => '#c9e8ed', vLineColor: () => '#c9e8ed',
+                },
+                margin: [0, 0, 0, 10],
+            };
+        };
 
         // ── Component breakdown table body (values in mAh over lifetime) ──
         const rptLifetimeH = result.battery_life_days * 24;
@@ -1559,107 +2949,393 @@
             [ th(''), th('Component'), th('mAh'), th('%') ],
         ];
         GROUPS.forEach(g => {
-            const gMah = toMah(result.group_currents_ma[g.key]);
-            const gPct = totalUa > 0
-                ? ((result.group_currents_ma[g.key] || 0) * 1000 / totalUa * 100).toFixed(1) : '0.0';
+            const gMa  = getGroupTotal(g, result);
+            const gMah = toMah(gMa);
+            const gPct = totalUa > 0 ? (gMa * 1000 / totalUa * 100).toFixed(1) : '0.0';
             breakdownBody.push([
-                { text: '', fillColor: '#e4f4f7' },
-                { text: g.label, bold: true, fontSize: 7.5, fillColor: '#e4f4f7' },
-                td(gMah,  { alignment: 'right', bold: true, fillColor: '#e4f4f7' }),
-                td(`${gPct}%`, { alignment: 'right', bold: true, fillColor: '#e4f4f7' }),
+                { canvas: [{ type: 'rect', x: 1, y: 1, w: 5, h: 9, r: 1, color: g.color }],
+                  fillColor: '#f0f9fa', margin: [0, 1, 0, 1] },
+                { text: g.label, bold: true, fontSize: 7.5, fillColor: '#f0f9fa' },
+                td(gMah,       { alignment: 'right', bold: true, fillColor: '#f0f9fa' }),
+                td(`${gPct}%`, { alignment: 'right', bold: true, fillColor: '#f0f9fa', color: g.color }),
             ]);
-            g.components.forEach(c => {
-                const cMah = toMah(result.components_ma[c.key]);
-                const pct  = totalUa > 0
-                    ? ((result.components_ma[c.key] || 0) * 1000 / totalUa * 100).toFixed(1) : '0.0';
+            getGroupChildren(g, result).forEach(c => {
+                const cMa  = getChildValue(c, result);
+                const cMah = toMah(cMa);
+                const cPct = totalUa > 0 ? (cMa * 1000 / totalUa * 100).toFixed(1) : '0.0';
                 breakdownBody.push([
-                    td(''),
-                    td(`   ${c.label}`),
-                    td(cMah, { alignment: 'right' }),
-                    td(`${pct}%`, { alignment: 'right' }),
+                    { canvas: [{ type: 'rect', x: 2, y: 3, w: 3, h: 5, r: 1, color: c.color || g.color }],
+                      margin: [0, 1, 0, 1] },
+                    td(`  ${c.label}`, { color: '#444' }),
+                    td(cMah,       { alignment: 'right', color: '#555' }),
+                    td(`${cPct}%`, { alignment: 'right', color: '#777' }),
                 ]);
             });
         });
         breakdownBody.push([
-            td(''),
+            { text: '', margin: [0,2,0,2] },
             { text: 'Total', bold: true, fontSize: 7, margin: [2,2,2,2] },
             td(result.battery.capacity_mah.toFixed(1), { alignment: 'right', bold: true }),
             td('100%', { alignment: 'right', bold: true }),
         ]);
 
-        // ── Geoloc config block ───────────────────────────────────────────
+        // geoConfigBlock removed — geoloc config is now part of the unified geoBlock below
         const geoConfigBlock = [];
-        if (window.deviceConfig && Object.keys(window.deviceConfig).length > 0) {
-            const cfg  = window.deviceConfig;
-            const keys = ['geoloc_motion_period','geoloc_static_period',
-                          'geoloc_gbe_profile0_techno','geoloc_gbe_profile1_techno','geoloc_gbe_profile2_techno'];
-            const rows = keys.filter(k => cfg[k] !== undefined)
-                             .map(k => [ { text: k, bold: true, fontSize: 7 }, td(cfg[k]) ]);
-            if (rows.length) {
-                geoConfigBlock.push(
-                    { text: 'Geolocation Configuration', style: 'h2' },
-                    { table: { widths: ['auto', '*'], body: rows },
-                      layout: 'lightHorizontalLines', margin: [0, 0, 0, 8] }
-                );
-            }
-        }
 
         // ── CPU statistics block ──────────────────────────────────────────
         const cpuStatsBlock = [];
         {
             const lifeDays  = result.battery_life_days;
             const lifetimeH = lifeDays * 24;
-            const hbPeriod  = parseFloat(document.getElementById('heartbeat_period_s').value) || 0;
-            const hbPerDay  = hbPeriod > 0 ? 86400 / hbPeriod : 0;
-            const stPeriod  = parseFloat(document.getElementById('status_period_s').value) || 0;
-            const stPerDay  = stPeriod > 0 ? 86400 / stPeriod : 0;
+            const monPeriod = parseFloat(document.getElementById('monitoring_period_s').value) || 0;
+            const monPerDay = monPeriod > 0 ? 86400 / monPeriod : 0;
             const cpuMah    = ((result.group_currents_ma.cpu || 0) * lifetimeH).toFixed(1);
 
-            const msgRow = (label, period, perDay, total) => period <= 0
-                ? [ td(label), td('Disabled', { color: '#aaa' }), td('—', { alignment: 'right' }), td('—', { alignment: 'right' }) ]
-                : [ td(label), td(`${period} s`), td(fmt(perDay) + ' / day', { alignment: 'right' }), td(fmtI(total) + ' total', { alignment: 'right' }) ];
+            const monRow = monPeriod <= 0
+                ? [ td('System monitoring wakeup'), td('Disabled', { color: '#aaa' }),
+                    td('—', { alignment: 'right' }), td('—', { alignment: 'right' }) ]
+                : [ td('System monitoring wakeup'), td(`${monPeriod} s`),
+                    td(fmt(monPerDay) + ' / day', { alignment: 'right' }),
+                    td(fmtI(Math.round(monPerDay * lifeDays)) + ' total', { alignment: 'right' }) ];
 
             cpuStatsBlock.push(
-                { text: 'General CPU Statistics', style: 'h2' },
+                sectionHeader('General CPU Statistics'),
                 { table: {
                     headerRows: 1,
                     widths: ['*', 'auto', 'auto', 'auto'],
                     body: [
-                        ['Message type','Period','Rate','Lifetime total'].map(th),
-                        msgRow('Heartbeat',      hbPeriod, hbPerDay, Math.round(hbPerDay * lifeDays)),
-                        msgRow('Status message', stPeriod, stPerDay, Math.round(stPerDay * lifeDays)),
+                        ['Event', 'Period', 'Rate', 'Lifetime total'].map(th),
+                        monRow,
                     ]
                   }, layout: 'lightHorizontalLines', margin: [0, 0, 0, 4] },
                 { text: `CPU & System total: ${cpuMah} mAh`, fontSize: 8, color: '#008293', bold: true, margin: [0, 0, 0, 8] }
             );
         }
 
-        // ── Geoloc statistics block ───────────────────────────────────────
-        const geoStatsBlock = [];
-        if (geoData) {
-            geoStatsBlock.push({ text: 'Geolocation Statistics', style: 'h2' });
-            geoData.stats.forEach(ps => {
-                const header = ['Technology','Mode','Run prob.','Fail prob.',
-                                'Runs/day','Success/day','Fail/day','Total (lifetime)'].map(th);
-                const rows   = ps.slots.map(s => {
-                    const mode = s.isFirst ? 'First slot' : (s.alwaysDone ? 'Always Done' : 'Conditional');
+        // ── Uplinks by Network Technology block ──────────────────────────
+        const uplinksStatsBlock = [];
+        {
+            const ul = window.lastUplinksData;
+            if (ul) {
+                const fmtR = n => n.toLocaleString(undefined, { maximumFractionDigits: 2 });
+                const fmtI = n => Math.round(n).toLocaleString();
+
+                function ulRow(label, hint, perDay, state, indent = 0) {
+                    const labelCell = indent
+                        ? { text: '   ' + label, fontSize: 7, margin: [2+indent*8, 2, 2, 2] }
+                        : td(label);
+                    if (state === 'no-config')
+                        return [labelCell, td('Load config file', { color: '#b07800', italics: true }),
+                                td('—', { alignment: 'right' }), td('—', { alignment: 'right' })];
+                    if (state === 'disabled')
+                        return [labelCell, td(hint || '—', { color: '#aaa' }),
+                                td('—', { alignment: 'right', color: '#aaa' }),
+                                td('Disabled', { alignment: 'right', color: '#aaa', italics: true })];
+                    return [labelCell, td(hint || '', { fontSize: 6.5, color: '#666' }),
+                            td(fmtR(perDay) + ' / day', { alignment: 'right' }),
+                            td(fmtI(perDay * ul.lifeDays), { alignment: 'right', bold: true })];
+                }
+
+                function ulTotalRow(label, perDay, color) {
                     return [
-                        td(s.technoName),
-                        td(mode),
+                        { text: label, bold: true, fontSize: 7, margin: [2,3,2,3], colSpan: 2 }, {},
+                        td(fmtR(perDay) + ' / day', { alignment: 'right', bold: true }),
+                        td(fmtI(perDay * ul.lifeDays), { alignment: 'right', bold: true, color }),
+                    ];
+                }
+
+                function ulSectionRow(label, fillColor) {
+                    return [{ text: label, bold: true, fontSize: 7, colSpan: 4,
+                              fillColor, color: '#fff', margin: [2,3,2,3] }, {}, {}, {}];
+                }
+
+                // Generates parent row + TX1 sub-row + TX2 sub-row for the PDF.
+                // When hasTxStrat is false, falls back to a single ulRow.
+                function ulTxPairRows(label, hint, tx1PD, tx2PD, state, tx2Note, indent = 0) {
+                    if (!ul.hasTxStrat) return [ulRow(label, hint, tx1PD, state, indent)];
+                    if (state === 'no-config') return [[
+                        { text: label, bold: true, fontSize: 7, margin: [2,2,2,2] },
+                        td('Load config file', { color: '#b07800', italics: true, fontSize: 6.5 }),
+                        td('—', { alignment: 'right' }), td('—', { alignment: 'right' }),
+                    ]];
+                    if (state === 'disabled') return [[
+                        { text: label, bold: true, fontSize: 7, margin: [2,2,2,2], color: '#aaa' },
+                        td('disabled', { color: '#aaa', italics: true, fontSize: 6.5 }),
+                        td('—', { alignment: 'right', color: '#aaa' }),
+                        td('—', { alignment: 'right', color: '#aaa' }),
+                    ]];
+                    const tx2None = tx2PD === 0;
+                    const tx2col  = tx2None ? '#bbb' : '#555';
+                    return [
+                        [
+                            { text: label, bold: true, fontSize: 7, margin: [2+indent*6,2,2,1] },
+                            td(hint || '', { fontSize: 6.5, color: '#666' }),
+                            td(fmtR(tx1PD + tx2PD) + ' /d', { alignment: 'right', color: '#aaa', fontSize: 6.5 }),
+                            td(fmtI((tx1PD + tx2PD) * ul.lifeDays), { alignment: 'right', bold: true, color: '#aaa', fontSize: 6.5 }),
+                        ],
+                        [
+                            { text: '  TX1', fontSize: 6.5, color: '#006b7e', bold: true, margin: [6+indent*6,1,2,1] },
+                            td('', {}),
+                            td(fmtR(tx1PD) + ' /d', { alignment: 'right', fontSize: 6.5 }),
+                            td(fmtI(tx1PD * ul.lifeDays), { alignment: 'right', bold: true, fontSize: 6.5 }),
+                        ],
+                        [
+                            { text: '  TX2', fontSize: 6.5, color: tx2None ? '#bbb' : '#2a9faf', bold: true, margin: [6+indent*6,1,2,2] },
+                            td(tx2Note || '', { fontSize: 6, color: tx2col }),
+                            td(tx2None ? '—' : fmtR(tx2PD) + ' /d', { alignment: 'right', fontSize: 6.5, color: tx2col }),
+                            td(tx2None ? '—' : fmtI(tx2PD * ul.lifeDays), { alignment: 'right', bold: true, fontSize: 6.5, color: tx2None ? '#bbb' : '#005f6b' }),
+                        ],
+                    ];
+                }
+
+                const colWidths = ['*', '*', 'auto', 'auto'];
+                const hdrRow = ['Message type', 'Period / Config', '/ day', 'Lifetime']
+                    .map(t => th(t));
+
+                // LoRa status sub-rows (with TX1+TX2 breakdown when available)
+                const loraStatusSub = ul.statusTypes.flatMap(t =>
+                    ulTxPairRows(t, `1/${ul.numStatusTypes} of total`,
+                        ul.loraStatusPerTypePerDay, ul.tx2StatusPerTypePD, ul.statusState, ul.tx2MixedNote, 1)
+                );
+                const lteStatusSub = ul.statusTypes.map(t =>
+                    ulRow(t, `1/${ul.numStatusTypes} of total`, ul.lteStatusPerTypePerDay, ul.statusState, 1)
+                );
+
+                // LoRa total rows with TX1/TX2 split
+                const loraTotalRows = ul.hasTxStrat ? [
+                    [
+                        { text: 'LoRa Total', bold: true, fontSize: 7, margin: [2,3,2,1], colSpan: 2 }, {},
+                        td(fmtR(ul.loraTotalPerDay + ul.tx2TotalPerDay) + ' /d', { alignment: 'right', bold: true, color: '#aaa' }),
+                        td(fmtI((ul.loraTotalPerDay + ul.tx2TotalPerDay) * ul.lifeDays), { alignment: 'right', bold: true, color: '#aaa' }),
+                    ],
+                    [
+                        { text: '  TX1 total', fontSize: 6.5, color: '#006b7e', bold: true, margin: [6,1,2,1] },
+                        td('', {}),
+                        td(fmtR(ul.loraTotalPerDay) + ' /d', { alignment: 'right', bold: true, fontSize: 6.5 }),
+                        td(fmtI(ul.loraTotalPerDay * ul.lifeDays), { alignment: 'right', bold: true, color: '#005f6b', fontSize: 6.5 }),
+                    ],
+                    [
+                        { text: '  TX2 total', fontSize: 6.5, color: ul.tx2TotalPerDay > 0 ? '#2a9faf' : '#bbb', bold: true, margin: [6,1,2,2] },
+                        td(ul.tx2MixedNote || '', { fontSize: 6, color: '#666' }),
+                        td(ul.tx2TotalPerDay > 0 ? fmtR(ul.tx2TotalPerDay) + ' /d' : '—', { alignment: 'right', bold: true, fontSize: 6.5, color: ul.tx2TotalPerDay > 0 ? '#555' : '#bbb' }),
+                        td(ul.tx2TotalPerDay > 0 ? fmtI(ul.tx2TotalPerDay * ul.lifeDays) : '—', { alignment: 'right', bold: true, fontSize: 6.5, color: ul.tx2TotalPerDay > 0 ? '#005f6b' : '#bbb' }),
+                    ],
+                ] : [ulTotalRow('LoRa Total', ul.loraTotalPerDay, '#005f6b')];
+
+                const ulTableWidths = ['*', '*', 72, 62];
+
+                // ── LoRa Network (full width) ─────────────────────────────
+                uplinksStatsBlock.push(
+                    sectionHeader('Uplinks by Network Technology'),
+                    {
+                        canvas: [{ type: 'rect', x: 0, y: 0, w: 523, h: 18, r: 3, color: '#e4f4f7' }],
+                        margin: [0, 0, 0, -16],
+                    },
+                    { text: `LoRa Network — ${ul.loraUsagePct}% of device lifetime`
+                        + (ul.hasTxStrat
+                            ? `  ·  tx_strategy = ${ul.txStratRawParsed}  (${
+                                ul.txDualStatic && ul.txDualMotion ? 'Dual TX both'
+                                : ul.txDualStatic ? 'Dual TX static'
+                                : ul.txDualMotion ? 'Dual TX motion'
+                                : 'Single TX'}${ul.txAdr ? ' · ADR' : ''})`
+                            : ''),
+                      fontSize: 7.5, bold: true, color: '#005f6b', margin: [4, 2, 0, 4] },
+                    { table: {
+                        headerRows: 1, widths: ulTableWidths,
+                        body: [
+                            hdrRow,
+                            ulSectionRow('Status Messages', '#005f6b'),
+                            ...ulTxPairRows('All types', ul.statusHint, ul.loraStatusPerDay, ul.tx2StatusPerDay, ul.statusState, ul.tx2MixedNote),
+                            ...loraStatusSub,
+                            ulSectionRow('Heartbeat', '#008293'),
+                            ...ulTxPairRows('Heartbeat', ul.hbHint, ul.loraHbPerDay, ul.tx2HbPerDay, ul.hbState, ul.tx2MixedNote),
+                            ulSectionRow('LoRa Probing (state-weighted)', '#008293'),
+                            ...ulTxPairRows('Probe — static', ul.loraProbeStaticHint, ul.loraProbeStaticPerDay, ul.tx2ProbeStaticPerDay, ul.loraProbeStaticState, ul.tx2StaticNote),
+                            ...ulTxPairRows('Probe — motion', ul.loraProbeMotionHint, ul.loraProbeMotionPerDay, ul.tx2ProbeMotionPerDay, ul.loraProbeMotionState, ul.tx2MotionNote),
+                            ...loraTotalRows,
+                        ]
+                      }, layout: 'lightHorizontalLines', margin: [0, 0, 0, 8] },
+                );
+
+                // ── RX Windows (full width, only when TX strategy is set) ──
+                if (ul.hasTxStrat) {
+                    const rxTotal = ul.rx1Tx1 + ul.rx1Tx2 + ul.rx2Tx1 + ul.rx2Tx2;
+                    uplinksStatsBlock.push(
+                        {
+                            canvas: [{ type: 'rect', x: 0, y: 0, w: 523, h: 18, r: 3, color: '#e0f0f5' }],
+                            margin: [0, 0, 0, -16],
+                        },
+                        { text: 'RX Windows  (1 × RX1 + 1 × RX2 per TX uplink)',
+                          fontSize: 7.5, bold: true, color: '#3a7f90', margin: [4, 2, 0, 4] },
+                        { table: {
+                            headerRows: 1, widths: ulTableWidths,
+                            body: [
+                                hdrRow,
+                                [td('RX1', {bold:true}), td('after TX1'),
+                                 td(fmtR(ul.rx1Tx1) + ' /d', {alignment:'right'}),
+                                 td(fmtI(ul.rx1Tx1 * ul.lifeDays), {alignment:'right', bold:true})],
+                                [td('RX1', {bold:true, color: ul.rx1Tx2 === 0 ? '#bbb' : '#333'}),
+                                 td(ul.rx1Tx2 === 0 ? 'after TX2 (no TX2)' : 'after TX2', {color: ul.rx1Tx2 === 0 ? '#bbb' : '#444'}),
+                                 td(ul.rx1Tx2 === 0 ? '—' : fmtR(ul.rx1Tx2) + ' /d', {alignment:'right', color: ul.rx1Tx2 === 0 ? '#bbb' : '#333'}),
+                                 td(ul.rx1Tx2 === 0 ? '—' : fmtI(ul.rx1Tx2 * ul.lifeDays), {alignment:'right', bold: ul.rx1Tx2 > 0, color: ul.rx1Tx2 === 0 ? '#bbb' : '#333'})],
+                                [td('RX2', {bold:true}), td('after TX1'),
+                                 td(fmtR(ul.rx2Tx1) + ' /d', {alignment:'right'}),
+                                 td(fmtI(ul.rx2Tx1 * ul.lifeDays), {alignment:'right', bold:true})],
+                                [td('RX2', {bold:true, color: ul.rx2Tx2 === 0 ? '#bbb' : '#333'}),
+                                 td(ul.rx2Tx2 === 0 ? 'after TX2 (no TX2)' : 'after TX2', {color: ul.rx2Tx2 === 0 ? '#bbb' : '#444'}),
+                                 td(ul.rx2Tx2 === 0 ? '—' : fmtR(ul.rx2Tx2) + ' /d', {alignment:'right', color: ul.rx2Tx2 === 0 ? '#bbb' : '#333'}),
+                                 td(ul.rx2Tx2 === 0 ? '—' : fmtI(ul.rx2Tx2 * ul.lifeDays), {alignment:'right', bold: ul.rx2Tx2 > 0, color: ul.rx2Tx2 === 0 ? '#bbb' : '#333'})],
+                                [
+                                    { text: 'RX Total', bold: true, fontSize: 7, margin: [2,3,2,3], colSpan: 2, fillColor: '#f0f9fb' }, {},
+                                    td(fmtR(rxTotal) + ' /d', {alignment:'right', bold:true, fillColor:'#f0f9fb'}),
+                                    td(fmtI(rxTotal * ul.lifeDays), {alignment:'right', bold:true, color:'#005f6b', fillColor:'#f0f9fb'}),
+                                ],
+                            ]
+                          }, layout: 'lightHorizontalLines', margin: [0, 0, 0, 8] },
+                    );
+                }
+
+                // ── Data Rate Distribution (full width, only when TX strategy) ──
+                if (ul.hasTxStrat) {
+                    const pdfAllDRs = [0, 1, 2, 3, 4, 5, 6, 7];
+                    const thDR = (label, active) => ({
+                        text: label, bold: true,
+                        fillColor: active ? TEAL : '#d8d8d8',
+                        color: active ? '#fff' : '#888',
+                        fontSize: 7, alignment: 'center', margin: [2, 3, 2, 3],
+                    });
+                    const pdfDrHdr = [
+                        { text: '', bold: true, fillColor: TEAL, color: '#fff', fontSize: 7, margin: [2,3,2,3] },
+                        ...pdfAllDRs.map(i => {
+                            const used = (ul.tx1DRProbs[i] || 0) > 0.0001 || (ul.tx2DRProbs[i] || 0) > 0.0001;
+                            return thDR(`DR${i}`, used);
+                        }),
+                    ];
+                    const pdfTx1Row = [
+                        { text: 'TX1', bold: true, fontSize: 7, color: '#006b7e', fillColor: '#f0f9fb', margin: [4,2,2,2] },
+                        ...pdfAllDRs.map(i => {
+                            const p = ul.tx1DRProbs[i] || 0;
+                            return { text: p > 0.0001 ? (p*100).toFixed(1)+'%' : '—',
+                                     fontSize: 7, alignment: 'center', bold: p > 0.0001,
+                                     color: p > 0.0001 ? '#006b7e' : '#bbb', fillColor: '#f0f9fb', margin: [2,2,2,2] };
+                        }),
+                    ];
+                    const pdfTx2Row = [
+                        { text: 'TX2', bold: true, fontSize: 7,
+                          color: ul.tx2TotalPerDay > 0 ? '#2a9faf' : '#bbb',
+                          fillColor: '#fafcfd', margin: [4,2,2,2] },
+                        ...pdfAllDRs.map(i => {
+                            const p = ul.tx2DRProbs[i] || 0;
+                            return { text: p > 0.0001 ? (p*100).toFixed(1)+'%' : '—',
+                                     fontSize: 7, alignment: 'center', bold: p > 0.0001,
+                                     color: p > 0.0001 ? '#2a9faf' : '#bbb', fillColor: '#fafcfd', margin: [2,2,2,2] };
+                        }),
+                    ];
+                    const drNote = ul.txAdr
+                        ? 'TX1 static: ADR percentages · TX1 motion: Byte 1 equal-prob · TX2: Byte 2 equal-prob'
+                        : 'TX1: Byte 1 equal-prob across selected DRs · TX2: Byte 2 equal-prob';
+                    uplinksStatsBlock.push(
+                        {
+                            canvas: [{ type: 'rect', x: 0, y: 0, w: 523, h: 18, r: 3, color: '#e4f4f7' }],
+                            margin: [0, 0, 0, -16],
+                        },
+                        { text: 'Data Rate Distribution' + (ul.txAdr ? '  (ADR on)' : ''),
+                          fontSize: 7.5, bold: true, color: '#005f6b', margin: [4, 2, 0, 4] },
+                        { table: {
+                            headerRows: 1,
+                            widths: ['auto', '*', '*', '*', '*', '*', '*', '*', '*'],
+                            body: [pdfDrHdr, pdfTx1Row, pdfTx2Row],
+                          }, layout: 'lightHorizontalLines', margin: [0, 0, 0, 4] },
+                        { text: drNote, fontSize: 6, color: '#888', italics: true, margin: [0, 0, 0, 8] },
+                    );
+                }
+
+                // ── LTE / Cellular (full width) ───────────────────────────
+                uplinksStatsBlock.push(
+                    {
+                        canvas: [{ type: 'rect', x: 0, y: 0, w: 523, h: 18, r: 3, color: '#ddeef5' }],
+                        margin: [0, 0, 0, -16],
+                    },
+                    { text: `LTE / Cellular — ${ul.lteUsagePct}% of device lifetime`,
+                      fontSize: 7.5, bold: true, color: '#1e5f7a', margin: [4, 2, 0, 4] },
+                    { table: {
+                        headerRows: 1, widths: ulTableWidths,
+                        body: [
+                            hdrRow,
+                            ulSectionRow('Status Messages', '#1e5f7a'),
+                            ulRow('All types', ul.statusHint, ul.lteStatusPerDay, ul.statusState),
+                            ...lteStatusSub,
+                            ulSectionRow('LTE Probing (independent of device state)', '#2c7fa0'),
+                            ulRow('Probe', ul.lteProbeHint, ul.lteProbePerDay, ul.lteProbeState),
+                            ulTotalRow('LTE Total', ul.lteTotalPerDay, '#1e5f7a'),
+                        ]
+                      }, layout: 'lightHorizontalLines', margin: [0, 0, 0, 8] },
+                );
+
+                if (!ul.cfgLoaded) {
+                    uplinksStatsBlock.push({
+                        text: 'Note: probe parameters are not available — load a device config file to include them.',
+                        fontSize: 7, color: '#b07800', italics: true, margin: [0, 0, 0, 4],
+                    });
+                }
+            }
+        }
+
+        // ── Geolocation profiles block (config + stats combined) ──────────
+        const geoStatsBlock = [];
+        if (geoData && geoData.stats && geoData.stats.length > 0) {
+            const cfg = window.deviceConfig || {};
+            geoStatsBlock.push(sectionHeader('Geolocation Profiles'));
+
+            geoData.stats.forEach(ps => {
+                const inMotion   = !!(ps.triggers & 0x10);
+                const inStatic   = !!(ps.triggers & 0x20);
+                const mp         = parseFloat(cfg.geoloc_motion_period) || 300;
+                const sp         = parseFloat(cfg.geoloc_static_period) || 3600;
+                const motStr     = inMotion ? `Motion: 1 fix / ${mp} s` : 'Motion: disabled';
+                const stStr      = inStatic ? `Static: 1 fix / ${sp} s` : 'Static: disabled';
+                const geoHdrText = `Profile ${ps.profileIndex}  ·  ${motStr}  ·  ${stStr}  ·  ${fmt(ps.triggersPerDay)} triggers/day`;
+
+                const slotRows = ps.slots.map(s => {
+                    const mode = s.isFirst ? 'First slot' : (s.alwaysDone ? 'Always done' : 'Conditional');
+                    return [
+                        td(s.technoName, { bold: true, color: '#006b7e' }),
+                        td(mode, { color: s.isFirst ? '#005f6b' : '#444' }),
                         td(`${(s.runProb * 100).toFixed(1)}%`, { alignment: 'right' }),
-                        td(`${s.failPct.toFixed(1)}%`,         { alignment: 'right' }),
-                        td(fmt(s.runsPerDay),                  { alignment: 'right' }),
-                        td(fmt(s.successesPerDay),             { alignment: 'right' }),
-                        td(fmt(s.failuresPerDay),              { alignment: 'right' }),
-                        td(fmtI(s.runsPerDay * result.battery_life_days), { alignment: 'right' }),
+                        td(`${s.failPct.toFixed(1)}%`,  { alignment: 'right', color: s.failPct > 0 ? '#c05000' : '#aaa' }),
+                        td(fmt(s.runsPerDay),            { alignment: 'right' }),
+                        td(fmt(s.successesPerDay),       { alignment: 'right', bold: true, color: '#2a7a2a' }),
+                        td(fmt(s.failuresPerDay),        { alignment: 'right', color: s.failuresPerDay > 0.001 ? '#c05000' : '#aaa' }),
+                        td(fmtI(s.runsPerDay * result.battery_life_days), { alignment: 'right', bold: true }),
                     ];
                 });
+
+                const totalRow = [
+                    { text: 'Total', bold: true, fontSize: 7, margin: [2,3,2,3], colSpan: 4, fillColor: '#e4f4f7' }, {}, {}, {},
+                    td(fmt(ps.triggersPerDay), { alignment: 'right', bold: true, fillColor: '#e4f4f7' }),
+                    td('', { fillColor: '#e4f4f7' }),
+                    td('', { fillColor: '#e4f4f7' }),
+                    td(fmtI(ps.triggersPerDay * result.battery_life_days), { alignment: 'right', bold: true, fillColor: '#e4f4f7' }),
+                ];
+
                 geoStatsBlock.push(
-                    { text: `Profile ${ps.profileIndex}  —  ${fmt(ps.triggersPerDay)} triggers / day`,
-                      style: 'h3' },
-                    { table: { headerRows: 1, widths: Array(8).fill('*'),
-                               body: [header, ...rows] },
-                      layout: 'lightHorizontalLines', margin: [0, 0, 0, 8] }
+                    {
+                        table: { widths: ['*'], body: [[{
+                            text: geoHdrText, bold: true, fontSize: 7.5, color: '#005f6b',
+                            fillColor: '#e4f4f7', margin: [6, 4, 6, 4],
+                        }]]},
+                        layout: 'noBorders',
+                        margin: [0, 2, 0, 3],
+                    },
+                    { table: {
+                        headerRows: 1,
+                        widths: ['auto', 'auto', 'auto', 'auto', 'auto', 'auto', 'auto', '*'],
+                        body: [
+                            ['Technology', 'Mode', 'Run prob.', 'Fail prob.', 'Runs/day', 'Success/day', 'Fail/day', 'Total (lifetime)'].map(th),
+                            ...slotRows,
+                            totalRow,
+                        ]
+                      }, layout: 'lightHorizontalLines', margin: [0, 0, 0, 10] },
                 );
             });
         }
@@ -1667,89 +3343,156 @@
         // ── pdfmake document definition ───────────────────────────────────
         const docDef = {
             pageSize:    'A4',
-            pageMargins: [36, 32, 36, 32],
+            pageMargins: [36, 46, 36, 36],
+
+            // Running page header
+            header: (currentPage, pageCount) => ({
+                columns: [
+                    { text: `Abeeway  ·  Battery Life Estimator`, fontSize: 6.5, color: '#aaa', margin: [36, 18, 0, 0] },
+                    { text: `Page ${currentPage} of ${pageCount}`, fontSize: 6.5, color: '#aaa', alignment: 'right', margin: [0, 18, 36, 0] },
+                ],
+            }),
 
             styles: {
-                h1: { fontSize: 17, bold: true, color: TEAL, margin: [0, 0, 0, 3] },
-                h2: { fontSize: 10.5, bold: true, color: TEAL, margin: [0, 12, 0, 4],
-                      decoration: 'underline', decorationColor: TEAL },
-                h3: { fontSize: 9, bold: true, color: TEAL, margin: [0, 6, 0, 3] },
-                meta: { fontSize: 8, color: '#666', margin: [0, 0, 0, 10] },
-                disclaimer: { fontSize: 7, color: '#aaa', italics: true, margin: [0, 12, 0, 0] },
+                h3: { fontSize: 8.5, bold: true, color: TEAL, margin: [0, 6, 0, 3] },
+                disclaimer: { fontSize: 6.5, color: '#aaa', italics: true, margin: [0, 10, 0, 0] },
             },
 
-            defaultStyle: { fontSize: 8 },
+            defaultStyle: { fontSize: 7.5 },
 
             content: [
-                // ── Header ──────────────────────────────────────────────
-                { text: 'Battery Life Estimation Report', style: 'h1' },
-                { text: `Generated: ${now}   |   Product: ${productName}   |   Config: ${configFile}`,
-                  style: 'meta' },
-
-                // ── Configuration ────────────────────────────────────────
-                { text: 'Configuration', style: 'h2' },
+                // ── Title banner ──────────────────────────────────────────
                 {
-                    table: {
-                        widths: ['auto', '*', 'auto', '*'],
-                        body: [
-                            [ { text:'Product', bold:true, fontSize:7 },          td(productName),
-                              { text:'Battery capacity', bold:true, fontSize:7 }, td(`${input.battery_capacity_mah} mAh`) ],
-                            [ { text:'Self-discharge', bold:true, fontSize:7 },   td(`${input.annual_discharge_pct} %/yr`),
-                              { text:'LoRa SF', bold:true, fontSize:7 },           td(`SF${input.sf}`) ],
-                            [ { text:'TX power', bold:true, fontSize:7 },         td(input.tx_power.replace(/_/g,' ').trim()),
-                              { text:'Motion / Static', bold:true, fontSize:7 },  td(`${mPct}% / ${sPct}%`) ],
-                        ],
-                    },
-                    layout: 'lightHorizontalLines',
-                    margin: [0, 0, 0, 6],
+                    table: { widths: ['*', 'auto'], body: [[
+                        { stack: [
+                            { text: 'Battery Life Estimation Report', fontSize: 17, bold: true, color: '#fff', margin: [10, 10, 0, 2] },
+                            { text: `${productName}  ·  ${configFile}`, fontSize: 7.5, color: '#c0eaf0', margin: [10, 0, 0, 10] },
+                          ], fillColor: TEAL },
+                        { stack: [
+                            { text: 'Generated', fontSize: 6.5, color: '#c0eaf0', alignment: 'right', margin: [0, 12, 10, 1] },
+                            { text: now, fontSize: 7, color: '#fff', bold: true, alignment: 'right', margin: [0, 0, 10, 10] },
+                          ], fillColor: TEAL },
+                    ]]},
+                    layout: 'noBorders',
+                    margin: [0, 0, 0, 12],
                 },
 
-                // ── Geoloc config ────────────────────────────────────────
-                ...geoConfigBlock,
+                // ── Configuration ────────────────────────────────────────
+                sectionHeader('Configuration'),
+                {
+                    table: {
+                        widths: [70, '*', 70, '*'],
+                        body: [
+                            [
+                                { text: 'Product',          bold: true, fontSize: 7, color: '#555', fillColor: '#f4fbfc', margin: [6,4,4,4] },
+                                { text: productName,        fontSize: 7,             fillColor: '#f4fbfc', margin: [4,4,6,4] },
+                                { text: 'Battery capacity', bold: true, fontSize: 7, color: '#555', fillColor: '#f4fbfc', margin: [6,4,4,4] },
+                                { text: `${input.battery_capacity_mah} mAh`, fontSize: 7, fillColor: '#f4fbfc', margin: [4,4,6,4] },
+                            ],
+                            [
+                                { text: 'Self-discharge',   bold: true, fontSize: 7, color: '#555', margin: [6,4,4,4] },
+                                { text: `${input.annual_discharge_pct} %/yr`, fontSize: 7, margin: [4,4,6,4] },
+                                { text: 'Motion / Static',  bold: true, fontSize: 7, color: '#555', margin: [6,4,4,4] },
+                                { text: `${mPct}% motion  /  ${sPct}% static`, fontSize: 7, margin: [4,4,6,4] },
+                            ],
+                            [
+                                { text: 'LoRa SF',          bold: true, fontSize: 7, color: '#555', fillColor: '#f4fbfc', margin: [6,4,4,4] },
+                                { text: `SF${input.sf}`,    fontSize: 7,             fillColor: '#f4fbfc', margin: [4,4,6,4] },
+                                { text: 'TX power',         bold: true, fontSize: 7, color: '#555', fillColor: '#f4fbfc', margin: [6,4,4,4] },
+                                { text: input.tx_power.replace(/_/g,' ').trim(), fontSize: 7, fillColor: '#f4fbfc', margin: [4,4,6,4] },
+                            ],
+                        ],
+                    },
+                    layout: {
+                        hLineWidth: () => 0.5, vLineWidth: () => 0,
+                        hLineColor: () => '#d0eef2',
+                    },
+                    margin: [0, 0, 0, 4],
+                },
 
-                // ── KPI cards ────────────────────────────────────────────
-                { text: 'Results', style: 'h2' },
+                // ── Key Results ───────────────────────────────────────────
+                sectionHeader('Key Results'),
                 kpiRow([
-                    kpiCard(result.battery_life_days.toLocaleString(), 'days',   'Battery Life'),
-                    kpiCard((result.battery_life_days/365).toFixed(2), 'years',  'Battery Life'),
-                    kpiCard(Math.round(result.battery.capacity_mah),   'mAh',    'Capacity'),
-                    kpiCard(result.battery.annual_discharge_mah,       'mAh/yr', 'Self-Discharge'),
+                    kpiCard(result.battery_life_days.toLocaleString(), 'days',    'Battery Life'),
+                    kpiCard((result.battery_life_days/365).toFixed(2), 'years',   'Battery Life'),
+                    kpiCard(Math.round(result.battery.capacity_mah),   'mAh',     'Battery Capacity'),
+                    kpiCard(result.battery.annual_discharge_mah,       'mAh/yr',  'Self-Discharge'),
+                    kpiCard((result.total_current_ma * 1000).toFixed(1), 'µA',    'Avg. Current'),
                 ]),
 
-                // ── Breakdown + chart ─────────────────────────────────────
+                // ── Power Breakdown + Chart ───────────────────────────────
+                sectionHeader('Power Consumption Breakdown'),
                 {
                     columns: [
+                        // Left: breakdown table
                         {
                             width: '*',
                             stack: [
-                                { text: 'Component Breakdown', style: 'h3' },
                                 { table: { headerRows: 1,
-                                           widths: [6, '*', 'auto', 'auto'],
+                                           widths: [8, '*', 'auto', 'auto'],
                                            body: breakdownBody },
-                                  layout: 'lightHorizontalLines' },
+                                  layout: {
+                                      hLineWidth: (i, node) => (i === 0 || i === 1 || i === node.table.body.length) ? 0.7 : 0.3,
+                                      vLineWidth: () => 0,
+                                      hLineColor: (i, node) => (i === 0 || i === 1 || i === node.table.body.length) ? '#b0d8e0' : '#ddf0f3',
+                                  },
+                                },
                             ],
                         },
+                        { width: 12, text: '' },
+                        // Right: chart + legend
                         {
-                            width: 145,
+                            width: 170,
                             stack: [
-                                { text: 'Power Distribution', style: 'h3' },
-                                { image: chartImg, width: 145, height: 145 },
+                                { text: 'Distribution', fontSize: 7.5, bold: true, color: '#555',
+                                  alignment: 'center', margin: [0, 0, 0, 6] },
+                                { image: pdfChartImg, width: 155, height: 155, alignment: 'center' },
+                                // Legend rows
+                                {
+                                    table: {
+                                        widths: [10, '*', 32],
+                                        body: GROUPS.map(g => {
+                                            const gMa  = getGroupTotal(g, result);
+                                            const gPct = totalUa > 0 ? (gMa * 1000 / totalUa * 100).toFixed(1) : '0.0';
+                                            return [
+                                                { canvas: [{ type: 'rect', x: 0, y: 2, w: 8, h: 8, r: 2, color: g.color }],
+                                                  margin: [2, 1, 0, 1] },
+                                                { text: g.label, fontSize: 6.5, margin: [2, 2, 0, 1] },
+                                                { text: `${gPct}%`, fontSize: 6.5, bold: true,
+                                                  color: g.color, alignment: 'right', margin: [0, 2, 2, 1] },
+                                            ];
+                                        }),
+                                    },
+                                    layout: {
+                                        hLineWidth: (i, node) => (i === 0 || i === node.table.body.length) ? 0.5 : 0,
+                                        vLineWidth: () => 0,
+                                        hLineColor: () => '#c9e8ed',
+                                    },
+                                    margin: [0, 8, 0, 0],
+                                },
                             ],
                         },
                     ],
-                    columnGap: 12,
-                    margin: [0, 4, 0, 0],
+                    columnGap: 0,
+                    margin: [0, 0, 0, 4],
                 },
 
-                // ── CPU statistics ────────────────────────────────────────
+                // ── CPU Statistics ────────────────────────────────────────
                 ...cpuStatsBlock,
 
-                // ── Geoloc statistics ─────────────────────────────────────
+                // ── Uplinks by Network Technology ─────────────────────────
+                ...uplinksStatsBlock,
+
+                // ── Geolocation Profiles ──────────────────────────────────
                 ...geoStatsBlock,
 
                 // ── Disclaimer ────────────────────────────────────────────
+                {
+                    canvas: [{ type: 'line', x1: 0, y1: 2, x2: 523, y2: 2, lineWidth: 0.5, lineColor: '#ddd' }],
+                    margin: [0, 10, 0, 4],
+                },
                 { text: 'Results are estimates. Actual battery life may differ due to environmental conditions, temperature, and duty-cycle variability.',
-                  style: 'disclaimer' },
+                  style: 'disclaimer', alignment: 'center' },
             ],
         };
 
