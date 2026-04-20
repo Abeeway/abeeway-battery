@@ -1789,6 +1789,53 @@
         const lifeDays  = result.battery_life_days;
         const isCombo   = document.getElementById('product').value === 'combo_tracker';
 
+        // ── Payload length badge ──────────────────────────────────────────
+        function payloadBadge(len) {
+            if (len === null || len === undefined) return '';
+            if (len === 'lc') return ` <span style="font-size:.68rem; color:#008293; background:#dff4f7; padding:1px 5px; border-radius:3px; margin-left:4px; white-space:nowrap;">Link Check</span>`;
+            return ` <span style="font-size:.68rem; color:#444; background:#eef2f5; padding:1px 5px; border-radius:3px; margin-left:4px; white-space:nowrap;">${len}&thinsp;B</span>`;
+        }
+
+        // ── Position payload length calculator ────────────────────────────
+        function computeScenarioPayloadLen(label) {
+            const HEADER = 8;  // 4 B message header + 4 B position header
+            const bssidBytes = rt => rt == 1 ? 2 : rt == 2 ? 16 : 7;
+            const parts = label.split(' + ');
+            let total = HEADER;
+            for (let i = 0; i < parts.length; i++) {
+                const part     = parts[i];
+                const prevPart = i > 0 ? parts[i - 1] : null;
+                const prevFailed = prevPart && (prevPart.includes('(failure)') || prevPart.includes('(no fix)'));
+                const isFirstOrAlwaysDone = i === 0 || !prevFailed;
+                const isSuccess = !part.includes('(failure)') && !part.includes('(no fix)');
+                if (part.startsWith('WiFi')) {
+                    const nb = +cfg.lr_wifi_report_nb_bssid || 4;
+                    total += isSuccess ? 7 * nb : 7 * Math.max(0, nb - 1);
+                } else if (part.startsWith('BLE Scan 1')) {
+                    const nb = +cfg.ble_scan1_nb_beacons || 4;
+                    const bs = bssidBytes(+cfg.ble_scan1_report_type || 0);
+                    if (isSuccess)             total += bs * nb;
+                    else if (isFirstOrAlwaysDone) total += bs * Math.max(0, nb - 1);
+                } else if (part.startsWith('BLE Scan 2')) {
+                    const nb = +cfg.ble_scan2_nb_beacons || 4;
+                    const bs = bssidBytes(+cfg.ble_scan2_report_type || 0);
+                    if (isSuccess)             total += bs * nb;
+                    else if (isFirstOrAlwaysDone) total += bs * Math.max(0, nb - 1);
+                } else if (part.startsWith('GNSS')) {
+                    if (isSuccess)             total += 16;
+                    else if (isFirstOrAlwaysDone) total += 11;
+                } else if (part.startsWith('LP-GPS')) {
+                    if (isSuccess)             total += 24;
+                    else if (isFirstOrAlwaysDone) total += 20;
+                } else if (part.startsWith('AGNSS')) {
+                    const nbSat = +cfg.gnss_agnss_nb_sat || 5;
+                    if (isSuccess)             total += 6 + 5 * nbSat;
+                    else if (isFirstOrAlwaysDone) total += 6;
+                }
+            }
+            return total;
+        }
+
         const loraFactor  = (parseFloat(document.getElementById('net_usage_lora_pct').value)     || 0) / 100;
         const lteFactor   = (parseFloat(document.getElementById('net_usage_cellular_pct').value) || 0) / 100;
         const _mPct1 = parseFloat(document.getElementById('motion_pct').value);
@@ -1840,25 +1887,26 @@
         const fmtI = n => Math.round(n).toLocaleString();
 
         // mkRow: state = 'active' | 'disabled' | 'no-config'
-        function mkRow(label, hint, perDay, state, indent = 0) {
-            const pad = `padding-left:${10 + indent * 16}px;`;
+        function mkRow(label, hint, perDay, state, indent = 0, payloadLen = null) {
+            const pad   = `padding-left:${10 + indent * 16}px;`;
+            const badge = payloadBadge(payloadLen);
             if (state === 'no-config') return `
                 <tr>
-                    <td style="${pad} color:#b07800;">${label}</td>
+                    <td style="${pad} color:#b07800;">${label}${badge}</td>
                     <td colspan="3" style="color:#b07800; font-size:.77rem; font-style:italic;">
                         Load a config file to see probe parameters
                     </td>
                 </tr>`;
             if (state === 'disabled') return `
                 <tr>
-                    <td style="${pad} color:#aaa;">${label}</td>
+                    <td style="${pad} color:#aaa;">${label}${badge}</td>
                     <td style="color:#aaa; font-size:.77rem;">${hint}</td>
                     <td class="right" style="color:#aaa;">—</td>
                     <td class="right" style="color:#aaa; font-style:italic;">Disabled</td>
                 </tr>`;
             return `
                 <tr>
-                    <td style="${pad}">${label}</td>
+                    <td style="${pad}">${label}${badge}</td>
                     <td style="color:#666; font-size:.77rem;">${hint}</td>
                     <td class="right" style="font-weight:bold;">${fmtR(perDay)}</td>
                     <td class="right" style="font-weight:bold;">${fmtI(perDay * lifeDays)}</td>
@@ -1980,9 +2028,9 @@
             const dS = txDualStatic ? 1 : 0, dM = txDualMotion ? 1 : 0;
             tx2StatusPerDay      = loraStatusPerDay  * (staticFrac * dS + motionFrac * dM);
             tx2HbPerDay          = loraHbPerDay       * (staticFrac * dS + motionFrac * dM);
-            tx2ProbeStaticPerDay = loraProbeStaticPerDay * dS;
-            tx2ProbeMotionPerDay = loraProbeMotionPerDay * dM;
-            tx2TotalPerDay       = tx2StatusPerDay + tx2HbPerDay + tx2ProbeStaticPerDay + tx2ProbeMotionPerDay;
+            tx2ProbeStaticPerDay = 0;  // probes use TX1 only
+            tx2ProbeMotionPerDay = 0;  // probes use TX1 only
+            tx2TotalPerDay       = tx2StatusPerDay + tx2HbPerDay;
             tx2StatusPerTypePD   = numStatusTypes > 0 ? tx2StatusPerDay / numStatusTypes : 0;
 
             const byte1Probs = getDRMaskProbs(byte1);
@@ -2034,20 +2082,21 @@
         // Parent row is clickable; TX1/TX2 sub-rows are hidden by default.
         // Falls back to a plain mkRow when hasTxStrat is false.
         let _txpIdx = 0;
-        function mkTxPair(label, hint, tx1PD, tx2PD, state, tx2Note, indent = 0) {
-            if (!hasTxStrat) return mkRow(label, hint, tx1PD, state, indent);
+        function mkTxPair(label, hint, tx1PD, tx2PD, state, tx2Note, indent = 0, payloadLen = null) {
+            if (!hasTxStrat) return mkRow(label, hint, tx1PD, state, indent, payloadLen);
+            const badge = payloadBadge(payloadLen);
             const hPad  = `padding-left:${10 + indent * 16}px;`;
             const subPL = 22 + indent * 16;
             if (state === 'no-config') return `
                 <tr>
-                    <td style="${hPad} color:#b07800; font-weight:bold;">${label}</td>
+                    <td style="${hPad} color:#b07800; font-weight:bold;">${label}${badge}</td>
                     <td colspan="3" style="color:#b07800; font-size:.77rem; font-style:italic;">
                         Load a config file to see probe parameters
                     </td>
                 </tr>`;
             if (state === 'disabled') return `
                 <tr>
-                    <td style="${hPad} color:#ccc; font-weight:bold;">${label}</td>
+                    <td style="${hPad} color:#ccc; font-weight:bold;">${label}${badge}</td>
                     <td colspan="3" style="color:#ccc; font-size:.77rem; font-style:italic;">disabled</td>
                 </tr>`;
             const tx2None = tx2PD === 0;
@@ -2056,7 +2105,7 @@
             const sFont = 'font-size:.74rem;';
             return `
                 <tr data-tx-toggle="${gid}" style="cursor:pointer; user-select:none;">
-                    <td style="${hPad} font-weight:bold;">${label}
+                    <td style="${hPad} font-weight:bold;">${label}${badge}
                         <span class="tx-tog" style="color:#008293; font-size:.68rem; margin-left:4px;">▸</span>
                     </td>
                     <td style="color:#666; font-size:.74rem;">${hint}</td>
@@ -2078,12 +2127,14 @@
         }
 
         // ── Build LoRa table rows ──────────────────────────────────────────
+        const STATUS_PAYLOAD_LENS = { 'Status 0': 42, 'Status 1': 35, 'Status 2': 48, 'Status 3': 54 };
+
         const loraStatusSubRows = statusTypes.map(t =>
-            mkTxPair(t, `1/${numStatusTypes} of total`, loraStatusPerTypePerDay, tx2StatusPerTypePD, statusState, tx2MixedNote, 1)
+            mkTxPair(t, `1/${numStatusTypes} of total`, loraStatusPerTypePerDay, tx2StatusPerTypePD, statusState, tx2MixedNote, 1, STATUS_PAYLOAD_LENS[t])
         ).join('');
 
         const lteStatusSubRows = statusTypes.map(t =>
-            mkRow(t, `1/${numStatusTypes} of total`, lteStatusPerTypePerDay, statusState, 1)
+            mkRow(t, `1/${numStatusTypes} of total`, lteStatusPerTypePerDay, statusState, 1, STATUS_PAYLOAD_LENS[t])
         ).join('');
 
         // ── TX Strategy bottom section: DR probability table ─────────────
@@ -2155,14 +2206,15 @@
             const dM = hasTxStrat && txDualMotion ? 1 : 0;
             const scenarioRows = posScenarios.map(s => {
                 const tx1PD = s.perDay * factor;
-                if (!useTxPair) return mkRow(s.label, 'position payload', tx1PD, 'active', 1);
+                const pLen  = computeScenarioPayloadLen(s.label);
+                if (!useTxPair) return mkRow(s.label, 'position payload', tx1PD, 'active', 1, pLen);
                 const tx2PD = (s.perDayMotion * dM + s.perDayStatic * dS) * factor;
                 const hasM = dM > 0 && s.perDayMotion > 1e-9;
                 const hasS = dS > 0 && s.perDayStatic > 1e-9;
                 const note = (hasM && hasS) ? 'dual TX — both modes' :
                               hasM           ? 'dual TX — motion mode' :
                               hasS           ? 'dual TX — static mode' : tx2MixedNote;
-                return mkTxPair(s.label, 'position payload', tx1PD, tx2PD, 'active', note, 1);
+                return mkTxPair(s.label, 'position payload', tx1PD, tx2PD, 'active', note, 1, pLen);
             }).join('');
             const subHdr = mkSubHeader(
                 'Position Uplinks &nbsp;<small style="font-weight:normal;">' +
@@ -2212,10 +2264,10 @@
                             ${mkSubHeader('Status Messages &nbsp;<small style="font-weight:normal;">(sent equally across all types)</small>')}
                             ${loraStatusSubRows}
                             ${mkSubHeader('Heartbeat &nbsp;<small style="font-weight:normal;">(LoRa only)</small>')}
-                            ${mkTxPair('Heartbeat', hbHint, loraHbPerDay, tx2HbPerDay, hbState, tx2MixedNote)}
+                            ${mkTxPair('Heartbeat', hbHint, loraHbPerDay, tx2HbPerDay, hbState, tx2MixedNote, 0, 11)}
                             ${mkSubHeader('LoRa Probing &nbsp;<small style="font-weight:normal;">(state-weighted)</small>')}
-                            ${mkTxPair('Probe — static', loraProbeStaticHint, loraProbeStaticPerDay, tx2ProbeStaticPerDay, loraProbeStaticState, tx2StaticNote)}
-                            ${mkTxPair('Probe — motion', loraProbeMotionHint, loraProbeMotionPerDay, tx2ProbeMotionPerDay, loraProbeMotionState, tx2MotionNote)}
+                            ${mkRow('Probe — static', loraProbeStaticHint, loraProbeStaticPerDay, loraProbeStaticState, 0, 'lc')}
+                            ${mkRow('Probe — motion', loraProbeMotionHint, loraProbeMotionPerDay, loraProbeMotionState, 0, 'lc')}
                             ${loraPosSection}
                             ${hasTxStrat
                                 ? (() => { const tg = `txpg${_txpIdx++}`; return `
@@ -2296,7 +2348,7 @@
                 </div>
 
             </div>
-            ${isCombo ? '<p style="font-size:.77rem; color:#555; margin-top:5px; margin-bottom:0;">Status 3 is only available on Combo Tracker boards.</p>' : ''}
+            ${isCombo ? '<p style="font-size:.77rem; color:#555; margin-top:5px; margin-bottom:0;">Status 2 and Status 3 are only available on Combo Tracker boards.</p>' : ''}
             ${!cfgLoaded ? `<p style="font-size:.77rem; color:#b07800; margin-top:6px; margin-bottom:0;">
                 Load a device config file to populate probe parameters
                 (<code>lorawan_probe_period_static</code>, <code>lorawan_probe_max_attempts_static</code>,
