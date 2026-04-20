@@ -27,6 +27,7 @@ let HW = {
 
     // GNSS / GPS
     gnss_active_current_ma:     30,    // GNSS chipset active current (standalone fix)
+    lpgps_active_current_ma:    20,    // LP-GPS chipset active current
     gps_active_current_ma:      22,    // kept for AGPS (assisted mode)
     gps_standby_current_ma:     0.05,
 
@@ -167,11 +168,23 @@ const BLE_OPERATIONS = {
                  get current() { return HW.ble_slow_scan_current_ma; } },
 };
 
-const TX_POWERS = {
-    _14dBm_: { descr: '14 dBm', get current() { return HW.lora_tx_14dbm_current_ma; } },
-    _17dBm_: { descr: '17 dBm', get current() { return HW.lora_tx_17dbm_current_ma; } },
-    _19dBm_: { descr: '19 dBm', get current() { return HW.lora_tx_19dbm_current_ma; } },
-};
+// Piecewise-linear interpolation of TX current from measured calibration points.
+// Values outside the range are clamped to the nearest endpoint.
+function getTxCurrentMa(dbm) {
+    const pts = [
+        [14, HW.lora_tx_14dbm_current_ma],
+        [17, HW.lora_tx_17dbm_current_ma],
+        [19, HW.lora_tx_19dbm_current_ma],
+    ];
+    if (dbm <= pts[0][0]) return pts[0][1];
+    if (dbm >= pts[pts.length - 1][0]) return pts[pts.length - 1][1];
+    for (let i = 0; i < pts.length - 1; i++) {
+        if (dbm <= pts[i + 1][0]) {
+            const t = (dbm - pts[i][0]) / (pts[i + 1][0] - pts[i][0]);
+            return pts[i][1] + t * (pts[i + 1][1] - pts[i][1]);
+        }
+    }
+}
 
 const CELLULAR_TECHS = {
     ltem: {
@@ -192,6 +205,7 @@ const CELLULAR_TECHS = {
 const HEARTBEAT_PAYL_LEN              = 12;
 const STATUS_PAYL_LEN                 = 12;
 const GPS_PAYL_LEN                    = 16;
+const LPGPS_PAYL_LEN                  = 24;
 const AGPS_MIN_PAYL_LEN               = 6;
 const AGPS_ADDITIONAL_SAT_PAYL_LEN   = 5;
 const WIFI_MIN_PAYL_LEN               = 6;
@@ -221,7 +235,7 @@ function calculate_lora_current(sf, tx_power, payl_len, nof_msg_per_day) {
     }
     const total_time_on_air = time_on_air + PREAMBLE_TIME;
 
-    const tx_energy  = total_time_on_air * HW.supply_voltage * TX_POWERS[tx_power].current / 1000;
+    const tx_energy  = total_time_on_air * HW.supply_voltage * getTxCurrentMa(tx_power) / 1000;
     const rx_energy  = 2 * 8 * SYMBOL_TIME * HW.supply_voltage * HW.lora_rx_current_ma / 1000;
     const mcu_energy = (total_time_on_air + 2000) * HW.supply_voltage * HW.mcu_active_current_ma / 1000;
     const total_energy = tx_energy + rx_energy + mcu_energy;
@@ -338,6 +352,9 @@ function calculate_battery_life_time(input) {
     const gps_lora_current =
         calculate_lora_current(input.sf, input.tx_power, GPS_PAYL_LEN, input.gps.nof_msg_per_day) * lora_factor;
 
+    const lpgps_lora_current =
+        calculate_lora_current(input.sf, input.tx_power, LPGPS_PAYL_LEN, input.lpgps?.nof_msg_per_day || 0) * lora_factor;
+
     const agps_lora_current = calculate_lora_current(
         input.sf, input.tx_power,
         AGPS_MIN_PAYL_LEN + (input.agps.nof_satellites * AGPS_ADDITIONAL_SAT_PAYL_LEN),
@@ -397,6 +414,7 @@ function calculate_battery_life_time(input) {
     const gps_geoloc_current  = input.gps.gnss_current_ma !== undefined
         ? input.gps.gnss_current_ma
         : calculate_gps_current(input.gps.ttff, input.gps.conv_time, input.gps.nof_msg_per_day);
+    const lpgps_geoloc_current = input.lpgps?.gnss_current_ma ?? 0;
     const agps_geoloc_current = calculate_agps_current(input.agps.on_time, input.agps.nof_msg_per_day);
     const wifi_geoloc_current = calculate_wifi_current(input.wifi.nof_msg_per_day);
     // BLE geoloc HW scan current — BLE Scan 1 and BLE Scan 2 tracked separately
@@ -445,8 +463,8 @@ function calculate_battery_life_time(input) {
 
     // Group totals
     const cpu_total      = cpu_idle_current + monitoring_current + fix_current;
-    const geoloc_total   = gps_geoloc_current + agps_geoloc_current + wifi_geoloc_current + ble_geoloc_current
-                         + gps_lora_current + agps_lora_current + wifi_lora_current + ble_lora_current;
+    const geoloc_total   = gps_geoloc_current + lpgps_geoloc_current + agps_geoloc_current + wifi_geoloc_current + ble_geoloc_current
+                         + gps_lora_current + lpgps_lora_current + agps_lora_current + wifi_lora_current + ble_lora_current;
     const cellular_total = cellular_current;
     const lora_total     = custom_msg_lora_current + heartbeat_lora_current + status_lora_current
                          + scan_collection_lora_current + custom_ble_usage_current + scan_collection_current
@@ -464,8 +482,9 @@ function calculate_battery_life_time(input) {
         cpu_quiescent:        fix_current,
         cpu_idle:             cpu_idle_current,
         cpu_monitoring:       monitoring_current,
-        geoloc_gps:           gps_geoloc_current  + gps_lora_current,
-        geoloc_agps:          agps_geoloc_current + agps_lora_current,
+        geoloc_gps:           gps_geoloc_current   + gps_lora_current,
+        geoloc_lpgps:         lpgps_geoloc_current + lpgps_lora_current,
+        geoloc_agps:          agps_geoloc_current  + agps_lora_current,
         geoloc_wifi:          wifi_geoloc_current + wifi_lora_current,
         geoloc_ble:           ble_geoloc_current  + ble_lora_current,  // combined (manual/fallback)
         geoloc_ble1:          ble1_hw + ble1_lora,                     // BLE Scan 1 (profile mode)

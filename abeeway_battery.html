@@ -163,7 +163,8 @@
             padding: 5px 10px;
             border-bottom: 1px solid #e0e0e0;
         }
-        .legend-table th.right { text-align: right; }
+        .legend-table th.right  { text-align: right; }
+        .legend-table th.center { text-align: center; }
         .legend-table tr.group-row td {
             padding: 6px 10px;
             font-weight: bold;
@@ -175,7 +176,8 @@
             color: #333;
             border-top: 1px solid #f0f0f0;
         }
-        .legend-table td.right { text-align: right; font-variant-numeric: tabular-nums; }
+        .legend-table td.right  { text-align: right;  font-variant-numeric: tabular-nums; }
+        .legend-table td.center { text-align: center; font-variant-numeric: tabular-nums; }
         .legend-swatch {
             display: inline-block;
             width: 11px; height: 11px;
@@ -441,9 +443,9 @@
     </fieldset>
 
     <!-- ════════════════════════════════════════════
-         SECTION 2 — General Consumptions
+         SECTION 2 — General Consumptions (hidden, backend still uses these values)
     ═════════════════════════════════════════════ -->
-    <fieldset>
+    <fieldset style="display:none;">
         <legend>General Consumptions</legend>
         <div style="display:flex; flex-flow:row wrap; gap:8px; align-items:stretch;">
 
@@ -636,11 +638,10 @@
                     <legend>Radio Parameters</legend>
                     <input type="hidden" id="sf" value="10">
                     <label for="tx_power">TX Power:</label><br />
-                    <select id="tx_power">
-                        <option value="_14dBm_">14 dBm</option>
-                        <option value="_17dBm_">17 dBm</option>
-                        <option value="_19dBm_" selected>19 dBm</option>
-                    </select>
+                    <div style="display:flex; align-items:center; gap:4px;">
+                        <input type="number" id="tx_power" value="19" min="0" max="22" step="0.1" style="width:70px;">
+                        <span style="color:#555; font-size:.9rem;">dBm</span>
+                    </div>
                 </fieldset>
 
             </div>
@@ -761,11 +762,10 @@
                     <option value="12" selected>SF12</option>
                 </select><br />
                 <label for="beacon_tx_power">Beacon TX Power:</label><br />
-                <select id="beacon_tx_power">
-                    <option value="_14dBm_">14 dBm</option>
-                    <option value="_17dBm_">17 dBm</option>
-                    <option value="_19dBm_" selected>19 dBm</option>
-                </select>
+                <div style="display:flex; align-items:center; gap:4px;">
+                    <input type="number" id="beacon_tx_power" value="19" min="0" max="22" step="0.1" style="width:70px;">
+                    <span style="color:#555; font-size:.9rem;">dBm</span>
+                </div>
             </div>
 
         </div>
@@ -849,6 +849,7 @@
                                 <th>Module / Component</th>
                                 <th class="right">mAh</th>
                                 <th class="right">%</th>
+                                <th class="center">mAh/run</th>
                                 <th></th>
                             </tr>
                         </thead>
@@ -1112,7 +1113,7 @@
         0x02: { name: 'WiFi',       params: ['nb_ap']                   },
         0x03: { name: 'BLE Scan 1', params: ['scan_dur', 'nb_beacons']  },
         0x04: { name: 'BLE Scan 2', params: ['scan_dur', 'nb_beacons']  },
-        0x05: { name: 'LPGPS', params: ['ttff'], gnss: true },
+        0x05: { name: 'LP-GPS', params: [], lpgps: true },
         0x06: { name: 'GNSS',  params: ['ttff'], gnss: true },
     };
 
@@ -1135,7 +1136,7 @@
                     nb_beacons: +c.ble_scan1_nb_beacons     || 4  },
             0x04: { scan_dur: +c.ble_scan2_duration         || 3000,
                     nb_beacons: +c.ble_scan2_nb_beacons     || 4  },
-            0x05: { ttff: +c.gnss_t0_timeout_motion || 30 },
+            0x05: {},
             0x06: { ttff: +c.gnss_t0_timeout_motion || 30 },
         };
         const m = maps[technoCode];
@@ -1155,13 +1156,13 @@
         const techno     = GEOLOC_TECHNO[tc];
         if (!techno) return '';
 
-        const failId     = `geoloc_p${pi}_s${si}_fail_pct`;
+        const failId     = `geoloc_p${pi}_s${si}_success_pct`;
         const badgeClass = isFirst ? 'badge-always' : (alwaysDone ? 'badge-always' : 'badge-cond');
         const badgeLabel = isFirst ? 'First slot'   : (alwaysDone ? '&#10003; Always Done' : 'Conditional');
         const failHint   = isFirst
             ? 'First techno in the chain — always executed.'
             : (alwaysDone
-                ? 'Always executed regardless of previous result. Failure probability drives downstream conditional slots.'
+                ? 'Always executed regardless of previous result. Success probability drives downstream conditional slots.'
                 : 'Executed only if the preceding slot failed.');
 
         const paramsHTML = techno.params.map(pk => {
@@ -1180,53 +1181,26 @@
                     <input type="number" min="0" id="${eid}" value="${val}"><br>`;
         }).join('');
 
-        // For GNSS / LPGPS: build failure-reason breakdown + config reference block
+        // For GNSS only: build failure-reason breakdown (T0 / weak-signal split)
         let gnssFailHTML = '';
         if (techno.gnss) {
-            const c   = cfg || {};
-            const t0m = +c.gnss_t0_timeout_motion    || 30;
-            const cvm = +c.gnss_convergence_motion   || 20;
-            const t0s = +c.gnss_t0_timeout_static    || 30;
-            const cvs = +c.gnss_convergence_static   || 20;
-            const mxt = +c.gnss_max_time             || 300;
             gnssFailHTML = `
             <div style="margin:8px 0 4px; padding:7px 9px; background:#f4f9fa; border-radius:4px; border-left:3px solid #008293;">
                 <small style="color:#008293; font-weight:bold; display:block; margin-bottom:6px;">Failure reason split:</small>
                 <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px; align-items:end;">
                     <div>
-                        <label for="geoloc_p${pi}_s${si}_t0_fail_pct" style="font-size:.75rem; color:#555; display:block; margin-bottom:2px;">T0 timeout [%]</label>
+                        <label for="geoloc_p${pi}_s${si}_t0_fail_pct" style="font-size:.75rem; color:#555; display:block; margin-bottom:2px;">Failure due to no signal (T0) [%]</label>
                         <input type="number" min="0" max="100" id="geoloc_p${pi}_s${si}_t0_fail_pct" value="50" style="margin:0;"
                             oninput="(function(v){var o=document.getElementById('geoloc_p${pi}_s${si}_max_fail_pct');if(o)o.value=Math.max(0,100-Math.min(100,+v||0));})(this.value)">
                     </div>
                     <div>
-                        <label for="geoloc_p${pi}_s${si}_max_fail_pct" style="font-size:.75rem; color:#555; display:block; margin-bottom:2px;">Max timeout [%]</label>
+                        <label for="geoloc_p${pi}_s${si}_max_fail_pct" style="font-size:.75rem; color:#555; display:block; margin-bottom:2px;">Failure due to weak signals [%]</label>
                         <input type="number" min="0" max="100" id="geoloc_p${pi}_s${si}_max_fail_pct" value="50" style="margin:0;"
                             oninput="(function(v){var o=document.getElementById('geoloc_p${pi}_s${si}_t0_fail_pct');if(o)o.value=Math.max(0,100-Math.min(100,+v||0));})(this.value)">
                     </div>
                 </div>
-                <div style="font-size:.7rem; color:#aaa; margin-top:4px; text-align:right;">T0 + Max = 100 %</div>
-            </div>
-            <table style="width:100%; border-collapse:collapse; font-size:.72rem; color:#777; margin-top:5px;">
-                <tr>
-                    <td></td>
-                    <td style="font-weight:bold; color:#555; padding:1px 4px; text-align:center;">Motion</td>
-                    <td style="font-weight:bold; color:#555; padding:1px 4px; text-align:center;">Static</td>
-                </tr>
-                <tr>
-                    <td style="padding:1px 4px;">T0</td>
-                    <td style="padding:1px 4px; text-align:center;">${t0m} s</td>
-                    <td style="padding:1px 4px; text-align:center;">${t0s} s</td>
-                </tr>
-                <tr>
-                    <td style="padding:1px 4px;">Conv</td>
-                    <td style="padding:1px 4px; text-align:center;">${cvm} s</td>
-                    <td style="padding:1px 4px; text-align:center;">${cvs} s</td>
-                </tr>
-                <tr>
-                    <td style="padding:1px 4px;">Max</td>
-                    <td colspan="2" style="padding:1px 4px; text-align:center;">${mxt} s</td>
-                </tr>
-            </table>`;
+                <div style="font-size:.7rem; color:#aaa; margin-top:4px; text-align:right;">No signal + Weak signals = 100 %</div>
+            </div>`;
         }
 
         return `
@@ -1237,8 +1211,8 @@
                 <span class="slot-order">Slot ${si + 1}</span>
             </div>
             <div style="display:flex; align-items:center; gap:6px; margin-bottom:3px;">
-                <label for="${failId}" style="flex:1; margin:0;">Failure probability</label>
-                <input type="number" min="0" max="100" id="${failId}" value="0" style="width:64px; margin:0;">
+                <label for="${failId}" style="flex:1; margin:0;">Success probability</label>
+                <input type="number" min="0" max="100" id="${failId}" value="100" style="width:64px; margin:0;">
                 <span style="color:#888; font-size:.85rem;">%</span>
             </div>
             <small style="color:#888; font-size:.72rem; display:block; margin-bottom:2px;">${failHint}</small>
@@ -1449,8 +1423,9 @@
         {
             key: 'geolocation', label: 'Geolocation', color: '#003f54',
             children: [
-                { key: 'geoloc_gps',  label: 'GNSS',       color: '#005f73' },
-                { key: 'geoloc_agps', label: 'AGPS',        color: '#0a7d94' },
+                { key: 'geoloc_gps',   label: 'GNSS',     color: '#005f73' },
+                { key: 'geoloc_lpgps', label: 'LP-GPS',   color: '#007a8a' },
+                { key: 'geoloc_agps',  label: 'AGPS',     color: '#0a7d94' },
                 { key: 'geoloc_wifi', label: 'WiFi Scan',   color: '#1499b3' },
                 { key: 'geoloc_ble1', label: 'BLE Scan 1',  color: '#33b8d0' },
                 { key: 'geoloc_ble2', label: 'BLE Scan 2',  color: '#5ccfe8' },
@@ -1484,6 +1459,24 @@
     function getChildValue(c, result) {
         if (c.srcKey) return result.group_currents_ma[c.srcKey] || 0;
         return result.components_ma[c.key] || 0;
+    }
+
+    // Returns { text, unit } for mAh-per-action of a geoloc child, or null if not applicable.
+    function geoPerAction(childKey, cMa, inp) {
+        let n, unit;
+        switch (childKey) {
+            case 'geoloc_gps':   n = inp.gps?.nof_runs_per_day   ?? inp.gps?.nof_msg_per_day;   unit = 'fix'; break;
+            case 'geoloc_lpgps': n = inp.lpgps?.nof_runs_per_day ?? inp.lpgps?.nof_msg_per_day; unit = 'fix'; break;
+            case 'geoloc_agps':  n = inp.agps?.nof_msg_per_day;  unit = 'fix'; break;
+            case 'geoloc_wifi': n = inp.wifi?.nof_msg_per_day; unit = 'scan'; break;
+            case 'geoloc_ble1': n = inp.ble?.ble1?.nof_msg_per_day ?? inp.ble?.nof_msg_per_day; unit = 'scan'; break;
+            case 'geoloc_ble2': n = inp.ble?.ble2?.nof_msg_per_day; unit = 'scan'; break;
+            default: return null;
+        }
+        if (!n || n <= 0 || !cMa) return null;
+        const v = (cMa * 24) / n;
+        const s = v >= 0.01 ? v.toFixed(3) : v.toFixed(5);
+        return { text: s, unit };
     }
 
     let sunburstChart = null;
@@ -1520,8 +1513,8 @@
 
         // Accumulated effective nof_msg_per_day per techno type
         const technoMsg = {
-            gnss:  { current_ma: 0, nof_success: 0 },
-            lpgps: { current_ma: 0, nof_success: 0 },
+            gnss:  { current_ma: 0, nof_success: 0, nof_runs: 0 },
+            lpgps: { current_ma: 0, nof_success: 0, nof_runs: 0 },
             agnss: { nof: 0, on_time: 45, nb_sat: 5 },
             wifi:  { nof: 0, nb_ap: 4 },
             ble1:  { nof: 0, scan_dur_ms: 3000, nb_beacons: 4 },  // BLE Scan 1 (technoCode 0x03)
@@ -1545,8 +1538,8 @@
                 const runProb    = probs[i];
                 const runsPerDay = perProfileTriggers.total * runProb;
 
-                const failEl   = document.getElementById(`geoloc_p${profile.profileIndex}_s${slot.slotIndex}_fail_pct`);
-                const failPct  = failEl ? (parseFloat(failEl.value) || 0) : 0;
+                const failEl   = document.getElementById(`geoloc_p${profile.profileIndex}_s${slot.slotIndex}_success_pct`);
+                const failPct  = failEl ? (100 - parseFloat(failEl.value)) : 0;
 
                 const getP = (key, def) => {
                     const el = document.getElementById(`geoloc_p${profile.profileIndex}_s${slot.slotIndex}_${key}`);
@@ -1554,26 +1547,21 @@
                 };
 
                 switch (slot.technoCode) {
-                    case 0x06:  // GNSS
-                    case 0x05: {  // LPGPS
-                        // GNSS timing parameters from device config
+                    case 0x06: {  // GNSS
                         const t0Motion = parseFloat(cfg.gnss_t0_timeout_motion)  || 30;
                         const cvMotion = parseFloat(cfg.gnss_convergence_motion) || 20;
                         const t0Static = parseFloat(cfg.gnss_t0_timeout_static)  || 30;
                         const cvStatic = parseFloat(cfg.gnss_convergence_static) || 20;
                         const maxTime  = parseFloat(cfg.gnss_max_time)           || 300;
 
-                        // User inputs per slot
                         const ttff      = getP('ttff', t0Motion);
                         const t0FailPct = getP('t0_fail_pct', 0);
                         const mxFailPct = getP('max_fail_pct', 0);
 
-                        // Probability breakdown
                         const successProb = (100 - failPct) / 100;
                         const t0AbsProb   = (failPct / 100) * (t0FailPct / 100);
                         const mxAbsProb   = (failPct / 100) * (mxFailPct / 100);
 
-                        // Expected active duration per run, split by device state
                         const avgDurMotion = successProb * (ttff + cvMotion)
                                            + t0AbsProb   * t0Motion
                                            + mxAbsProb   * maxTime;
@@ -1581,23 +1569,41 @@
                                            + t0AbsProb   * t0Static
                                            + mxAbsProb   * maxTime;
 
-                        // Per-slot motion/static run rates (triggers × slot-run-probability)
                         const motionRunsPerDay = perProfileTriggers.motion * runProb;
                         const staticRunsPerDay = perProfileTriggers.statc  * runProb;
 
                         const slotCurrentMa = HW.gnss_active_current_ma *
                             (motionRunsPerDay * avgDurMotion + staticRunsPerDay * avgDurStatic) / 86400;
 
-                        // Only successful fixes send a LoRa uplink
-                        const slotNofSuccess = runsPerDay * successProb;
+                        const slotNofSuccess = runsPerDay * ((100 - failPct) / 100);
+                        technoMsg.gnss.current_ma  += slotCurrentMa;
+                        technoMsg.gnss.nof_success += slotNofSuccess;
+                        technoMsg.gnss.nof_runs    += runsPerDay;
+                        break;
+                    }
+                    case 0x05: {  // LP-GPS
+                        // Success: active until gnss_agnss_max_time (motion and static identical)
+                        // Failure (no signal, T0 timeout): active until gnss_t0_timeout_motion/static
+                        const lpMaxTime  = parseFloat(cfg.gnss_agnss_max_time)       || 45;
+                        const lpt0Motion = parseFloat(cfg.gnss_t0_timeout_motion)    || 30;
+                        const lpt0Static = parseFloat(cfg.gnss_t0_timeout_static)    || 30;
 
-                        if (slot.technoCode === 0x06) {
-                            technoMsg.gnss.current_ma  += slotCurrentMa;
-                            technoMsg.gnss.nof_success += slotNofSuccess;
-                        } else {
-                            technoMsg.lpgps.current_ma  += slotCurrentMa;
-                            technoMsg.lpgps.nof_success += slotNofSuccess;
-                        }
+                        const successProb = (100 - failPct) / 100;
+                        const failureProb = failPct / 100;
+
+                        const avgDurMotion = successProb * lpMaxTime + failureProb * lpt0Motion;
+                        const avgDurStatic = successProb * lpMaxTime + failureProb * lpt0Static;
+
+                        const motionRunsPerDay = perProfileTriggers.motion * runProb;
+                        const staticRunsPerDay = perProfileTriggers.statc  * runProb;
+
+                        const slotCurrentMa = HW.lpgps_active_current_ma *
+                            (motionRunsPerDay * avgDurMotion + staticRunsPerDay * avgDurStatic) / 86400;
+
+                        const slotNofSuccess = runsPerDay * successProb;
+                        technoMsg.lpgps.current_ma  += slotCurrentMa;
+                        technoMsg.lpgps.nof_success += slotNofSuccess;
+                        technoMsg.lpgps.nof_runs    += runsPerDay;
                         break;
                     }
                     case 0x01:  // AGNSS
@@ -2415,8 +2421,8 @@
                 p = 1.0;
             } else {
                 const prev   = profile.slots[i - 1];
-                const failEl = document.getElementById(`geoloc_p${profile.profileIndex}_s${prev.slotIndex}_fail_pct`);
-                const failPct = failEl ? (parseFloat(failEl.value) || 0) : 0;
+                const failEl = document.getElementById(`geoloc_p${profile.profileIndex}_s${prev.slotIndex}_success_pct`);
+                const failPct = failEl ? (100 - parseFloat(failEl.value)) : 0;
                 p = probs[i - 1] * (failPct / 100);
             }
             probs.push(p);
@@ -2478,8 +2484,8 @@
             // Resolve failure probabilities for each slot upfront
             const slots = profile.slots.map(slot => {
                 const el = document.getElementById(
-                    `geoloc_p${profile.profileIndex}_s${slot.slotIndex}_fail_pct`);
-                return { ...slot, failPct: el ? (parseFloat(el.value) || 0) : 0 };
+                    `geoloc_p${profile.profileIndex}_s${slot.slotIndex}_success_pct`);
+                return { ...slot, failPct: el ? (100 - parseFloat(el.value)) : 0 };
             });
             const n = slots.length;
 
@@ -2545,7 +2551,7 @@
 
         const input = {
             product:               document.getElementById('product').value,
-            tx_power:              document.getElementById('tx_power').value,
+            tx_power:              parseFloat(document.getElementById('tx_power').value) || 19,
             sf:                    parseInt(document.getElementById('sf').value),
             battery_capacity_mah:  parseFloat(document.getElementById('battery_capacity_mah').value) || 1300,
             annual_discharge_pct:  parseFloat(document.getElementById('annual_discharge_pct').value) || 2.4,
@@ -2580,8 +2586,12 @@
                 if (useProfiles) {
                     const { technoMsg } = computeGeolocFromProfiles();
                     return {
-                        gps:  { gnss_current_ma: technoMsg.gnss.current_ma + technoMsg.lpgps.current_ma,
-                                nof_msg_per_day: technoMsg.gnss.nof_success + technoMsg.lpgps.nof_success },
+                        gps:   { gnss_current_ma: technoMsg.gnss.current_ma,
+                                 nof_msg_per_day: technoMsg.gnss.nof_success,
+                                 nof_runs_per_day: technoMsg.gnss.nof_runs },
+                        lpgps: { gnss_current_ma: technoMsg.lpgps.current_ma,
+                                 nof_msg_per_day: technoMsg.lpgps.nof_success,
+                                 nof_runs_per_day: technoMsg.lpgps.nof_runs },
                         agps: { nof_msg_per_day: technoMsg.agnss.nof,
                                 on_time: technoMsg.agnss.on_time,
                                 nof_satellites: technoMsg.agnss.nb_sat },
@@ -2635,7 +2645,7 @@
             recovery_beacon: {
                 interval_min: parseFloat(document.getElementById('beacon_interval_min').value) || 0,
                 sf:           parseInt(document.getElementById('beacon_sf').value),
-                tx_power:     document.getElementById('beacon_tx_power').value,
+                tx_power:     parseFloat(document.getElementById('beacon_tx_power').value) || 19,
             },
         };
 
@@ -2813,6 +2823,7 @@
                 </td>
                 <td class="right">${gMah}</td>
                 <td class="right">${gPct}%</td>
+                <td class="center"></td>
                 <td>
                     <div class="pct-bar-wrap">
                         <div class="pct-bar-fill" style="width:${gPct}%;background:${g.color};"></div>
@@ -2826,6 +2837,8 @@
                 const cMa  = getChildValue(c, result);
                 const cMah = fmtMah(cMa);
                 const cPct = totalUa > 0 ? (cMa * 1000 / totalUa * 100).toFixed(1) : '0.0';
+                const pa   = g.key === 'geolocation' ? geoPerAction(c.key, cMa, input) : null;
+                const paHTML = `<td class="center">${pa ? pa.text : ''}</td>`;
                 const cRow = document.createElement('tr');
                 cRow.className = 'comp-row';
                 cRow.style.display = 'none';
@@ -2836,6 +2849,7 @@
                     </td>
                     <td class="right">${cMah}</td>
                     <td class="right">${cPct}%</td>
+                    ${paHTML}
                     <td>
                         <div class="pct-bar-wrap">
                             <div class="pct-bar-fill" style="width:${cPct}%;background:${c.color};"></div>
@@ -2858,6 +2872,7 @@
             <td style="font-weight:bold; padding:6px 10px; border-top:2px solid #aaa;">Total</td>
             <td class="right" style="font-weight:bold; padding:6px 10px; border-top:2px solid #aaa;">${result.battery.capacity_mah.toFixed(1)}</td>
             <td class="right" style="font-weight:bold; padding:6px 10px; border-top:2px solid #aaa;">100%</td>
+            <td class="center" style="border-top:2px solid #aaa;"></td>
             <td style="border-top:2px solid #aaa;"></td>`;
         tbody.appendChild(totalRow);
 
@@ -2998,7 +3013,7 @@
         const toMah = mA => ((mA || 0) * rptLifetimeH).toFixed(1);
 
         const breakdownBody = [
-            [ th(''), th('Component'), th('mAh'), th('%') ],
+            [ th(''), th('Component'), th('mAh'), th('%'), th('mAh/run') ],
         ];
         GROUPS.forEach(g => {
             const gMa  = getGroupTotal(g, result);
@@ -3010,17 +3025,21 @@
                 { text: g.label, bold: true, fontSize: 7.5, fillColor: '#f0f9fa' },
                 td(gMah,       { alignment: 'right', bold: true, fillColor: '#f0f9fa' }),
                 td(`${gPct}%`, { alignment: 'right', bold: true, fillColor: '#f0f9fa', color: g.color }),
+                td('',         { fillColor: '#f0f9fa' }),
             ]);
             getGroupChildren(g, result).forEach(c => {
                 const cMa  = getChildValue(c, result);
                 const cMah = toMah(cMa);
                 const cPct = totalUa > 0 ? (cMa * 1000 / totalUa * 100).toFixed(1) : '0.0';
+                const pa   = g.key === 'geolocation' ? geoPerAction(c.key, cMa, input) : null;
                 breakdownBody.push([
                     { canvas: [{ type: 'rect', x: 2, y: 3, w: 3, h: 5, r: 1, color: c.color || g.color }],
                       margin: [0, 1, 0, 1] },
                     td(`  ${c.label}`, { color: '#444' }),
                     td(cMah,       { alignment: 'right', color: '#555' }),
                     td(`${cPct}%`, { alignment: 'right', color: '#777' }),
+                    pa ? td(pa.text, { alignment: 'center', color: '#008293', fontSize: 6.5 })
+                       : td('', {}),
                 ]);
             });
         });
@@ -3029,6 +3048,7 @@
             { text: 'Total', bold: true, fontSize: 7, margin: [2,2,2,2] },
             td(result.battery.capacity_mah.toFixed(1), { alignment: 'right', bold: true }),
             td('100%', { alignment: 'right', bold: true }),
+            td('', {}),
         ]);
 
         // geoConfigBlock removed — geoloc config is now part of the unified geoBlock below
@@ -3451,7 +3471,7 @@
                                 { text: 'LoRa SF',          bold: true, fontSize: 7, color: '#555', fillColor: '#f4fbfc', margin: [6,4,4,4] },
                                 { text: `SF${input.sf}`,    fontSize: 7,             fillColor: '#f4fbfc', margin: [4,4,6,4] },
                                 { text: 'TX power',         bold: true, fontSize: 7, color: '#555', fillColor: '#f4fbfc', margin: [6,4,4,4] },
-                                { text: input.tx_power.replace(/_/g,' ').trim(), fontSize: 7, fillColor: '#f4fbfc', margin: [4,4,6,4] },
+                                { text: `${input.tx_power} dBm`, fontSize: 7, fillColor: '#f4fbfc', margin: [4,4,6,4] },
                             ],
                         ],
                     },
@@ -3481,7 +3501,7 @@
                             width: '*',
                             stack: [
                                 { table: { headerRows: 1,
-                                           widths: [8, '*', 'auto', 'auto'],
+                                           widths: [8, '*', 'auto', 'auto', 'auto'],
                                            body: breakdownBody },
                                   layout: {
                                       hLineWidth: (i, node) => (i === 0 || i === 1 || i === node.table.body.length) ? 0.7 : 0.3,
