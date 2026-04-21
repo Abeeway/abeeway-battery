@@ -20,14 +20,12 @@ let HW = {
     accelerometer_current_ma:   0.0065,
 
     // LoRa (SX1262)
-    lora_rx_current_ma:         10,
-    lora_tx_14dbm_current_ma:   45,
-    lora_tx_17dbm_current_ma:   75,
-    lora_tx_19dbm_current_ma:   85,
+    lora_rx_current_ma:         8,     // RX window current (I_RX)
+    lora_rx_window_ms:          90,    // duration of each RX window (T_RX)
 
     // GNSS / GPS
     gnss_active_current_ma:     30,    // GNSS chipset active current (standalone fix)
-    lpgps_active_current_ma:    20,    // LP-GPS chipset active current
+    lpgps_active_current_ma:    24,    // LP-GPS chipset active current
     gps_active_current_ma:      22,    // kept for AGPS (assisted mode)
     gps_standby_current_ma:     0.05,
 
@@ -91,6 +89,24 @@ function applyHardwareMeasurements(parsed) {
  * (Not hardware measurements — not affected by hw_measurements.cfg)
  * ──────────────────────────────────────────────────────────────── */
 const SPREADING_FACTORS = [7, 8, 9, 10, 11, 12];
+
+// TX power → TX current [mA] per product, measured calibration points (14–22 dBm)
+const LORA_TX_CURRENT_MA = {
+    compact:       { 14: 32, 15:  44, 16:  67, 17:  78, 18:  87, 19: 100, 20: 123, 21: 124, 22: 123 },
+    combo_tracker: { 14: 27, 15:  34, 16:  59, 17:  66, 18:  73, 19:  82, 20:  92, 21:  94, 22:  99 },
+};
+// industrial / micro / smart_badge → same RF front-end as compact
+
+// DR → SF mapping per LoRaWAN region (uplink only, 125 kHz BW unless noted)
+const LORAWAN_DR_TO_SF = {
+    EU868: { 0: 12, 1: 11, 2: 10, 3: 9, 4: 8, 5: 7 },
+    US915: { 0: 10, 1:  9, 2:  8, 3: 7 },
+    AU915: { 0: 12, 1: 11, 2: 10, 3: 9, 4: 8, 5: 7 },
+    AS923: { 0: 12, 1: 11, 2: 10, 3: 9, 4: 8, 5: 7 },
+    KR920: { 0: 12, 1: 11, 2: 10, 3: 9, 4: 8, 5: 7 },
+    IN865: { 0: 12, 1: 11, 2: 10, 3: 9, 4: 8, 5: 7 },
+    RU864: { 0: 12, 1: 11, 2: 10, 3: 9, 4: 8, 5: 7 },
+};
 
 const BATTERY_TYPES = {
     primary:      {
@@ -168,49 +184,37 @@ const BLE_OPERATIONS = {
                  get current() { return HW.ble_slow_scan_current_ma; } },
 };
 
-// Piecewise-linear interpolation of TX current from measured calibration points.
-// Values outside the range are clamped to the nearest endpoint.
-function getTxCurrentMa(dbm) {
-    const pts = [
-        [14, HW.lora_tx_14dbm_current_ma],
-        [17, HW.lora_tx_17dbm_current_ma],
-        [19, HW.lora_tx_19dbm_current_ma],
-    ];
-    if (dbm <= pts[0][0]) return pts[0][1];
-    if (dbm >= pts[pts.length - 1][0]) return pts[pts.length - 1][1];
-    for (let i = 0; i < pts.length - 1; i++) {
-        if (dbm <= pts[i + 1][0]) {
-            const t = (dbm - pts[i][0]) / (pts[i + 1][0] - pts[i][0]);
-            return pts[i][1] + t * (pts[i + 1][1] - pts[i][1]);
-        }
-    }
+// Linear interpolation between adjacent 1-dBm calibration points (14–22 dBm).
+// product: 'combo_tracker' uses combo table; all others use compact table.
+function getTxCurrentMa(dbm, product) {
+    const table = LORA_TX_CURRENT_MA[product] ?? LORA_TX_CURRENT_MA.compact;
+    const clamped = Math.max(14, Math.min(22, dbm));
+    const lo = Math.floor(clamped);
+    const hi = Math.min(22, lo + 1);
+    if (lo === hi) return table[lo];
+    const t = clamped - lo;
+    return table[lo] + t * (table[hi] - table[lo]);
 }
 
-const CELLULAR_TECHS = {
-    ltem: {
-        descr: 'LTE-M',
-        get tx_current()   { return HW.ltem_tx_current_ma;   },
-        get rx_current()   { return HW.ltem_rx_current_ma;   },
-        get idle_current() { return HW.ltem_idle_current_ma; },
-    },
-    nbiot: {
-        descr: 'NB-IoT',
-        get tx_current()   { return HW.nbiot_tx_current_ma;   },
-        get rx_current()   { return HW.nbiot_rx_current_ma;   },
-        get idle_current() { return HW.nbiot_idle_current_ma; },
-    },
+// Energy consumed per cellular uplink depending on RF coverage quality [mAh]
+const CELLULAR_ENERGY_PER_UPLINK_MAH = {
+    excellent: 0.10,
+    good:      0.25,
+    bad:       0.60,
 };
 
 // LoRa payload lengths [bytes] — protocol constants, not measurements
-const HEARTBEAT_PAYL_LEN              = 12;
-const STATUS_PAYL_LEN                 = 12;
-const GPS_PAYL_LEN                    = 16;
-const LPGPS_PAYL_LEN                  = 24;
-const AGPS_MIN_PAYL_LEN               = 6;
+const HEARTBEAT_PAYL_LEN              = 11;
+const STATUS_PAYL_BY_TYPE             = [42, 35, 48, 54]; // Status 0/1/2/3
+// Position uplinks: 8-byte uplink header (4B message + 4B position) shared across all geoloc techs
+const GEOLOC_HDR                      = 8;
+const GPS_PAYL_LEN                    = GEOLOC_HDR + 16;  // 24
+const LPGPS_PAYL_LEN                  = GEOLOC_HDR + 24;  // 32
+const AGPS_MIN_PAYL_LEN               = GEOLOC_HDR + 6;   // 14
 const AGPS_ADDITIONAL_SAT_PAYL_LEN   = 5;
-const WIFI_MIN_PAYL_LEN               = 6;
+const WIFI_MIN_PAYL_LEN               = GEOLOC_HDR;       // 8 (7 bytes/BSSID, no tech-specific minimum)
 const WIFI_ADDITIONAL_BSSID_PAYL_LEN  = 7;
-const BLE_MIN_PAYL_LEN                = 6;
+const BLE_MIN_PAYL_LEN                = GEOLOC_HDR;       // 8 (7 bytes/beacon, no tech-specific minimum)
 const BLE_ADDITIONAL_BSSID_PAYL_LEN   = 7;
 const RECOVERY_BEACON_PAYL_LEN        = 4;
 
@@ -223,24 +227,51 @@ const SCANCOLL_ADDITIONAL_BEACONID_PAYL_LEN  = 4;
  * CALCULATION FUNCTIONS
  * ──────────────────────────────────────────────────────────────── */
 
-function calculate_lora_current(sf, tx_power, payl_len, nof_msg_per_day) {
-    const SYMBOL_TIME   = (2 ** sf) / 125;
-    const PREAMBLE_TIME = 12.25 * SYMBOL_TIME;
+// LoRa time-on-air + RX windows → average current [mA].
+//
+// ToA formula (LoRa spec, explicit header, CRC enabled, CR 4/5):
+//   T_sym [ms]   = 2^SF / BW_kHz  (BW = 125 kHz)
+//   T_preamble   = (n_preamble + 4.25) × T_sym = 12.25 × T_sym  (n_preamble = 8)
+//   DE           = 1 if SF ≥ 11 (low-data-rate optimisation), else 0
+//   n_payload    = 8 + max(⌈(8×PL - 4×SF + 44) / (4×(SF − 2×DE))⌉ × 5, 0)
+//     where PL = payload_bytes + 13 (LoRaWAN MAC overhead:
+//                MHDR(1) + DevAddr(4) + FCtrl(1) + FCnt(2) + FPort(1) + MIC(4))
+//   T_payload    = n_payload × T_sym
+//   T_packet     = T_preamble + T_payload
+//
+// Energy per uplink [mJ]:
+//   E_TX  = T_packet [ms] × V [V] × I_TX(dBm, product) [mA]  / 1000
+//   E_RX  = 2 × T_RX [ms] × V [V] × I_RX [mA]  / 1000   (RX1 + RX2 windows)
+//   Note: I_TX already includes MCU active current (measured with MCU running)
+//
+// Average current [mA] = (E_TX + E_RX) / V × N_msg_per_day / 86400
+function calculate_lora_current(sf, tx_power, payl_len, nof_msg_per_day, product) {
+    const T_sym      = (2 ** sf) / 125;                   // symbol period [ms]
+    const T_preamble = 12.25 * T_sym;                     // preamble time [ms]
+    const DE         = sf >= 11 ? 1 : 0;
+    const PL         = payl_len + 13;                     // total PHY bytes incl. LoRaWAN overhead
+    const n_payload  = 8 + Math.max(
+        Math.ceil((8 * PL - 4 * sf + 44) / (4 * (sf - 2 * DE))) * 5, 0);
+    const T_packet   = T_preamble + n_payload * T_sym;    // time on air [ms]
 
-    let time_on_air;
-    if (sf >= 11) {
-        time_on_air = SYMBOL_TIME * (8 + Math.ceil(((payl_len + 12) * 8 - 4 * (sf - 7) + 16) / (4 * sf - 8)) * 5);
-    } else {
-        time_on_air = SYMBOL_TIME * (8 + Math.ceil(((payl_len + 12) * 8 - 4 * (sf - 7) + 16) / (4 * sf - 0)) * 5);
+    const E_TX = T_packet * HW.supply_voltage * getTxCurrentMa(tx_power, product) / 1000;
+    const E_RX = 2 * HW.lora_rx_window_ms * HW.supply_voltage * HW.lora_rx_current_ma / 1000;
+
+    return ((E_TX + E_RX) / HW.supply_voltage) * (nof_msg_per_day / (24 * 3600));
+}
+
+// DR-distribution-weighted LoRa current.
+// dr_dist: [{dr, pct}, ...] where pct values sum to 100.
+// Falls back to DR→SF lookup for the configured region.
+function calculate_lora_current_dr_weighted(tx_power, payl_len, nof_msg_per_day, dr_dist, region, product) {
+    const sfMap = LORAWAN_DR_TO_SF[region] ?? LORAWAN_DR_TO_SF.EU868;
+    let current = 0;
+    for (const { dr, pct } of dr_dist) {
+        const sf = sfMap[dr];
+        if (sf == null || pct <= 0) continue;
+        current += (pct / 100) * calculate_lora_current(sf, tx_power, payl_len, nof_msg_per_day, product);
     }
-    const total_time_on_air = time_on_air + PREAMBLE_TIME;
-
-    const tx_energy  = total_time_on_air * HW.supply_voltage * getTxCurrentMa(tx_power) / 1000;
-    const rx_energy  = 2 * 8 * SYMBOL_TIME * HW.supply_voltage * HW.lora_rx_current_ma / 1000;
-    const mcu_energy = (total_time_on_air + 2000) * HW.supply_voltage * HW.mcu_active_current_ma / 1000;
-    const total_energy = tx_energy + rx_energy + mcu_energy;
-
-    return (total_energy / HW.supply_voltage) * (nof_msg_per_day / (24 * 3600));
+    return current;
 }
 
 /**
@@ -308,25 +339,32 @@ function calculate_battery_leakage_current(battery_capacity_mah, annual_discharg
  * Cellular communication current.
  * Each session = TX overhead (connection) + RX data exchange.
  */
-function calculate_cellular_current(tech, sessions_per_day, session_duration_s) {
-    if (!tech || sessions_per_day <= 0) return 0;
-    const ct = CELLULAR_TECHS[tech];
-    const CONNECT_TIME_S = 1.0;
-    const energy_per_session = (
-        CONNECT_TIME_S     * ct.tx_current * HW.supply_voltage / 1000 +
-        session_duration_s * ct.rx_current * HW.supply_voltage / 1000
-    );
-    return (energy_per_session / HW.supply_voltage) * (sessions_per_day / (24 * 3600));
+// Cellular average current [mA] from coverage distribution and uplink count.
+//
+// Formula:
+//   E_uplink [mAh] = (excellent% × 0.10 + good% × 0.25 + bad% × 0.60) / 100
+//   I_avg [mA]     = E_uplink [mAh] × N_uplinks_per_day / 24
+//
+// coverage_pct: { excellent, good, bad }  — values in %, must sum to 100
+// uplinks_per_day: cellular uplinks = total_uplinks × (cellular_usage% / 100)
+function calculate_cellular_current(coverage_pct, uplinks_per_day) {
+    if (!coverage_pct || uplinks_per_day <= 0) return 0;
+    const e = CELLULAR_ENERGY_PER_UPLINK_MAH;
+    const energy_per_uplink =
+        (coverage_pct.excellent / 100) * e.excellent +
+        (coverage_pct.good      / 100) * e.good      +
+        (coverage_pct.bad       / 100) * e.bad;
+    return energy_per_uplink * uplinks_per_day / 24;
 }
 
 /**
  * Recovery beacon: periodic LoRa TX at configurable SF/power.
  * interval_min = 0 means disabled.
  */
-function calculate_recovery_beacon_current(beacon_interval_min, sf, tx_power) {
+function calculate_recovery_beacon_current(beacon_interval_min, sf, tx_power, product) {
     if (beacon_interval_min <= 0) return 0;
     const nof_msg_per_day = (24 * 60) / beacon_interval_min;
-    return calculate_lora_current(sf, tx_power, RECOVERY_BEACON_PAYL_LEN, nof_msg_per_day);
+    return calculate_lora_current(sf, tx_power, RECOVERY_BEACON_PAYL_LEN, nof_msg_per_day, product);
 }
 
 
@@ -339,50 +377,98 @@ function calculate_battery_life_time(input) {
     const lora_factor     = input.net_usage_lora_pct     !== undefined ? input.net_usage_lora_pct     / 100 : 1.0;
     const cellular_factor = input.net_usage_cellular_pct !== undefined ? input.net_usage_cellular_pct / 100 : 1.0;
 
-    // LoRa currents (scaled by lora_factor)
+    // Resolve effective DR distribution and region
+    const region   = input.lorawan_region ?? 'EU868';
+    const dr_dist  = input.dr_distribution?.length > 0 ? input.dr_distribution : null;
+    const product  = input.product ?? 'compact';
+
+    // Helper: pick DR-weighted or single-SF LoRa current calculator (TX1)
+    const loraCalc = (payl_len, nof_msg) => dr_dist
+        ? calculate_lora_current_dr_weighted(input.tx_power, payl_len, nof_msg, dr_dist, region, product)
+        : calculate_lora_current(input.sf ?? 10, input.tx_power, payl_len, nof_msg, product);
+
+    // TX2: fraction of uplinks duplicated, using TX2 DR distribution (falls back to TX1 if absent)
+    const tx2_factor  = input.lora_tx2_factor ?? 0;
+    const tx2_dr_dist = input.lora_tx2_dr_distribution?.length > 0 ? input.lora_tx2_dr_distribution : dr_dist;
+    const loraCalcTx2 = tx2_factor > 0
+        ? (payl_len, nof_msg) => (tx2_dr_dist
+            ? calculate_lora_current_dr_weighted(input.tx_power, payl_len, nof_msg * tx2_factor, tx2_dr_dist, region, product)
+            : calculate_lora_current(input.sf ?? 10, input.tx_power, payl_len, nof_msg * tx2_factor, product))
+        : () => 0;
+
+    // Print formulas to console once per calculation
+    const sfMap = LORAWAN_DR_TO_SF[region] ?? LORAWAN_DR_TO_SF.EU868;
+    const drSfStr = dr_dist
+        ? dr_dist.map(({dr, pct}) => `DR${dr}(SF${sfMap[dr] ?? '?'}) ${pct.toFixed(1)}%`).join(', ')
+        : `SF${input.sf ?? 10} (single)`;
+    const tx2DrStr = tx2_dr_dist
+        ? tx2_dr_dist.map(({dr, pct}) => `DR${dr}(SF${sfMap[dr] ?? '?'}) ${pct.toFixed(1)}%`).join(', ')
+        : 'same as TX1';
+    console.log(
+`[LoRa consumption formula]
+  Region : ${region}   TX power : ${input.tx_power} dBm   Product : ${product}
+  TX1 DR/SF : ${drSfStr}
+  TX2 DR/SF : ${tx2DrStr}   TX2 factor : ${(tx2_factor * 100).toFixed(0)}% of uplinks
+
+  Time-on-air (LoRa spec, explicit header, CRC on, CR 4/5, BW 125 kHz):
+    T_sym [ms]   = 2^SF / 125
+    T_preamble   = 12.25 × T_sym          (8 preamble symbols + 4.25 header symbols)
+    DE           = 1 if SF ≥ 11 else 0   (low-data-rate optimisation)
+    PL           = payload_bytes + 13     (LoRaWAN overhead: MHDR+FHDR+FPort+MIC)
+    n_payload    = 8 + max(⌈(8×PL − 4×SF + 44) / (4×(SF − 2×DE))⌉ × 5, 0)
+    T_packet     = T_preamble + n_payload × T_sym
+
+  Energy per uplink [mJ]:
+    E_TX  = T_packet [ms] × V [V] × I_TX(dBm, product) [mA]  / 1000   (I_TX includes MCU)
+    E_RX  = 2 × ${HW.lora_rx_window_ms} ms × ${HW.lora_rx_current_ma} mA × V [V]  / 1000   (RX1 + RX2)
+
+  Average current [mA] = (E_TX + E_RX) / V × N_msg/day / 86400`);
+
+    // LoRa currents (TX1 + TX2, scaled by lora_factor)
     const custom_msg_lora_current =
-        calculate_lora_current(input.sf, input.tx_power, input.custom_msg.payl_len, input.custom_msg.nof_msg_per_day) * lora_factor;
+        (loraCalc(input.custom_msg.payl_len, input.custom_msg.nof_msg_per_day)
+       + loraCalcTx2(input.custom_msg.payl_len, input.custom_msg.nof_msg_per_day)) * lora_factor;
 
     const heartbeat_lora_current =
-        calculate_lora_current(input.sf, input.tx_power, HEARTBEAT_PAYL_LEN, input.heartbeat.nof_msg_per_day) * lora_factor;
+        (loraCalc(HEARTBEAT_PAYL_LEN, input.heartbeat.nof_msg_per_day)
+       + loraCalcTx2(HEARTBEAT_PAYL_LEN, input.heartbeat.nof_msg_per_day)) * lora_factor;
 
-    const status_lora_current =
-        calculate_lora_current(input.sf, input.tx_power, STATUS_PAYL_LEN, input.status_msg.nof_msg_per_day) * lora_factor;
+    const numStatusTypes   = product === 'combo_tracker' ? 4 : 2;
+    const statusNPerType   = input.status_msg.nof_msg_per_day / numStatusTypes;
+    const status_lora_current = STATUS_PAYL_BY_TYPE.slice(0, numStatusTypes).reduce((sum, payl) =>
+        sum + (loraCalc(payl, statusNPerType) + loraCalcTx2(payl, statusNPerType)) * lora_factor, 0);
 
     const gps_lora_current =
-        calculate_lora_current(input.sf, input.tx_power, GPS_PAYL_LEN, input.gps.nof_msg_per_day) * lora_factor;
+        (loraCalc(GPS_PAYL_LEN, input.gps.nof_msg_per_day)
+       + loraCalcTx2(GPS_PAYL_LEN, input.gps.nof_msg_per_day)) * lora_factor;
 
     const lpgps_lora_current =
-        calculate_lora_current(input.sf, input.tx_power, LPGPS_PAYL_LEN, input.lpgps?.nof_msg_per_day || 0) * lora_factor;
+        (loraCalc(LPGPS_PAYL_LEN, input.lpgps?.nof_msg_per_day || 0)
+       + loraCalcTx2(LPGPS_PAYL_LEN, input.lpgps?.nof_msg_per_day || 0)) * lora_factor;
 
-    const agps_lora_current = calculate_lora_current(
-        input.sf, input.tx_power,
-        AGPS_MIN_PAYL_LEN + (input.agps.nof_satellites * AGPS_ADDITIONAL_SAT_PAYL_LEN),
-        input.agps.nof_msg_per_day
-    ) * lora_factor;
+    const agps_payl = AGPS_MIN_PAYL_LEN + input.agps.nof_satellites * AGPS_ADDITIONAL_SAT_PAYL_LEN;
+    const agps_lora_current =
+        (loraCalc(agps_payl, input.agps.nof_msg_per_day)
+       + loraCalcTx2(agps_payl, input.agps.nof_msg_per_day)) * lora_factor;
 
-    const wifi_lora_current = calculate_lora_current(
-        input.sf, input.tx_power,
-        WIFI_MIN_PAYL_LEN + (input.wifi.nof_bssid * WIFI_ADDITIONAL_BSSID_PAYL_LEN),
-        input.wifi.nof_msg_per_day
-    ) * lora_factor;
+    const wifi_payl = WIFI_MIN_PAYL_LEN + input.wifi.nof_bssid * WIFI_ADDITIONAL_BSSID_PAYL_LEN;
+    const wifi_lora_current =
+        (loraCalc(wifi_payl, input.wifi.nof_msg_per_day)
+       + loraCalcTx2(wifi_payl, input.wifi.nof_msg_per_day)) * lora_factor;
 
     // BLE geoloc LoRa uplinks — BLE Scan 1 and BLE Scan 2 tracked separately
-    const ble1_lora = (input.ble.ble1
-        ? calculate_lora_current(
-              input.sf, input.tx_power,
-              BLE_MIN_PAYL_LEN + input.ble.ble1.nof_beaconid * BLE_ADDITIONAL_BSSID_PAYL_LEN,
-              input.ble.ble1.nof_msg_per_day)
-        : calculate_lora_current(
-              input.sf, input.tx_power,
-              BLE_MIN_PAYL_LEN + input.ble.nof_beaconid * BLE_ADDITIONAL_BSSID_PAYL_LEN,
-              input.ble.nof_msg_per_day)
-    ) * lora_factor;
+    const ble1_payl = input.ble.ble1
+        ? BLE_MIN_PAYL_LEN + input.ble.ble1.nof_beaconid * BLE_ADDITIONAL_BSSID_PAYL_LEN
+        : BLE_MIN_PAYL_LEN + input.ble.nof_beaconid * BLE_ADDITIONAL_BSSID_PAYL_LEN;
+    const ble1_nof = input.ble.ble1 ? input.ble.ble1.nof_msg_per_day : input.ble.nof_msg_per_day;
+    const ble1_lora = (loraCalc(ble1_payl, ble1_nof) + loraCalcTx2(ble1_payl, ble1_nof)) * lora_factor;
+
     const ble2_lora = input.ble.ble2
-        ? calculate_lora_current(
-              input.sf, input.tx_power,
-              BLE_MIN_PAYL_LEN + input.ble.ble2.nof_beaconid * BLE_ADDITIONAL_BSSID_PAYL_LEN,
-              input.ble.ble2.nof_msg_per_day) * lora_factor
+        ? (() => {
+            const p = BLE_MIN_PAYL_LEN + input.ble.ble2.nof_beaconid * BLE_ADDITIONAL_BSSID_PAYL_LEN;
+            const n = input.ble.ble2.nof_msg_per_day;
+            return (loraCalc(p, n) + loraCalcTx2(p, n)) * lora_factor;
+          })()
         : 0;
     const ble_lora_current = ble1_lora + ble2_lora;
 
@@ -395,17 +481,13 @@ function calculate_battery_life_time(input) {
     const nof_id_last_msg    = input.scan_collection.nof_id % nof_id_in_full_msg;
     const nof_full_fragments = Math.floor(input.scan_collection.nof_id / nof_id_in_full_msg);
 
+    const sc_full_payl = SCANCOLL_MIN_PAYL_LEN + nof_id_in_full_msg * scancoll_unit_len;
+    const sc_last_payl = SCANCOLL_MIN_PAYL_LEN + nof_id_last_msg * scancoll_unit_len;
+    const sc_full_nof  = nof_full_fragments * input.scan_collection.nof_msg_per_day;
+    const sc_last_nof  = input.scan_collection.nof_msg_per_day;
     const scan_collection_lora_current = (
-        calculate_lora_current(
-            input.sf, input.tx_power,
-            SCANCOLL_MIN_PAYL_LEN + nof_id_in_full_msg * scancoll_unit_len,
-            nof_full_fragments * input.scan_collection.nof_msg_per_day
-        ) +
-        calculate_lora_current(
-            input.sf, input.tx_power,
-            SCANCOLL_MIN_PAYL_LEN + nof_id_last_msg * scancoll_unit_len,
-            input.scan_collection.nof_msg_per_day
-        )
+        loraCalc(sc_full_payl, sc_full_nof) + loraCalcTx2(sc_full_payl, sc_full_nof) +
+        loraCalc(sc_last_payl, sc_last_nof) + loraCalcTx2(sc_last_payl, sc_last_nof)
     ) * lora_factor;
 
     // Geolocation HW currents
@@ -440,18 +522,32 @@ function calculate_battery_life_time(input) {
         input.monitoring.period_s, input.monitoring.current_ma, input.monitoring.window_ms
     );
 
-    // Cellular (scaled by cellular_factor)
+    // Total scheduled uplinks per day (all message types, before network split)
+    const ble_msgs_per_day = input.ble.ble1
+        ? (input.ble.ble1.nof_msg_per_day || 0) + (input.ble.ble2?.nof_msg_per_day || 0)
+        : (input.ble.nof_msg_per_day || 0);
+    const total_uplinks_per_day =
+        (input.custom_msg.nof_msg_per_day || 0) +
+        (input.heartbeat.nof_msg_per_day  || 0) +
+        (input.status_msg.nof_msg_per_day || 0) +
+        (input.gps.nof_msg_per_day        || 0) +
+        (input.lpgps?.nof_msg_per_day     || 0) +
+        (input.agps.nof_msg_per_day       || 0) +
+        (input.wifi.nof_msg_per_day       || 0) +
+        ble_msgs_per_day;
+
+    // Cellular — cellular_factor scales total uplinks to those routed over cellular
     const cellular_current = calculate_cellular_current(
-        input.cellular.tech,
-        input.cellular.sessions_per_day,
-        input.cellular.session_duration_s
-    ) * cellular_factor;
+        input.cellular.coverage_pct,
+        total_uplinks_per_day * cellular_factor
+    );
 
     // Recovery beacon
     const recovery_beacon_current = calculate_recovery_beacon_current(
         input.recovery_beacon.interval_min,
         input.recovery_beacon.sf,
-        input.recovery_beacon.tx_power
+        input.recovery_beacon.tx_power,
+        product
     );
 
     // Battery self-discharge (leakage)
@@ -528,5 +624,15 @@ function calculate_battery_life_time(input) {
 }
 
 if (typeof module !== 'undefined') {
-    module.exports = { calculate_battery_life_time, applyHardwareMeasurements, HW };
+    module.exports = {
+        calculate_battery_life_time,
+        calculate_lora_current,
+        calculate_lora_current_dr_weighted,
+        calculate_cellular_current,
+        applyHardwareMeasurements,
+        LORAWAN_DR_TO_SF,
+        LORA_TX_CURRENT_MA,
+        CELLULAR_ENERGY_PER_UPLINK_MAH,
+        HW,
+    };
 }

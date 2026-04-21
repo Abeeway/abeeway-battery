@@ -68,9 +68,37 @@
             box-sizing: border-box;
             min-width: 196px;
         }
-        input[type="text"], input[type="number"], select, button, textarea {
+        input[type="text"], input[type="number"], select, textarea {
             width: 100%;
-            padding: 2px 3px 2px 3px;
+            padding: 2px 6px 2px 8px;
+            margin-bottom: 10px;
+            box-sizing: border-box;
+            background: #f0fbfc;
+            border: 1px solid #9fd4da;
+            border-left: 3px solid #008293;
+            border-radius: 3px;
+            color: #1a1a1a;
+            outline: none;
+            transition: border-color .15s, box-shadow .15s;
+        }
+        input[type="text"]:hover, input[type="number"]:hover, select:hover, textarea:hover {
+            border-color: #007080;
+            border-left-color: #007080;
+        }
+        input[type="text"]:focus, input[type="number"]:focus, select:focus, textarea:focus {
+            border-color: #005f6b;
+            border-left-color: #005f6b;
+            box-shadow: 0 0 0 3px rgba(0,130,147,.15);
+        }
+        input[readonly], input:disabled, select:disabled {
+            background: #f5f5f5;
+            border-left-color: #ccc;
+            color: #888;
+            cursor: default;
+        }
+        button {
+            width: 100%;
+            padding: 2px 3px;
             margin-bottom: 10px;
             box-sizing: border-box;
         }
@@ -124,14 +152,26 @@
             gap: 16px;
             margin-bottom: 14px;
         }
+        .charts-row {
+            display: flex;
+            flex-direction: row;
+            flex-wrap: nowrap;
+            gap: 12px;
+            justify-content: center;
+            align-items: flex-start;
+            overflow-x: auto;
+            width: 100%;
+        }
         .chart-box-sunburst {
             border: 1px solid #ccc;
             border-radius: 6px;
             padding: 12px 8px 8px;
             background: #fff;
             text-align: center;
-            width: fit-content;
+            flex: 1 1 0;
+            min-width: 0;
         }
+        .chart-box-sunburst canvas { width: 100% !important; height: 380px !important; display: block; }
         .chart-box-sunburst h3 { color: #008293; font-size: .95rem; margin-bottom: 6px; }
 
         /* Legend table */
@@ -485,7 +525,7 @@
     <!-- ════════════════════════════════════════════
          SECTION 3 — Geolocation Technologies
     ═════════════════════════════════════════════ -->
-    <fieldset>
+    <fieldset id="geoloc_techno_section" style="display:none;">
         <legend>Geolocation Technologies Consumption</legend>
         <div class="flexcontainer">
 
@@ -608,22 +648,31 @@
             <div class="flexcontainer" id="cellular_inputs">
 
                 <fieldset class="flexitem">
-                    <legend>Technology</legend>
-                    <label for="cellular_tech">Technology:</label><br />
-                    <select id="cellular_tech">
-                        <option value="">Disabled</option>
-                        <option value="ltem">LTE-M</option>
-                        <option value="nbiot">NB-IoT</option>
-                    </select><br />
-                    <small style="color:#666;">LTE-M: TX 200 mA / RX 7 mA &nbsp;·&nbsp; NB-IoT: TX 220 mA / RX 5 mA</small>
-                </fieldset>
-
-                <fieldset class="flexitem">
-                    <legend>Session Parameters</legend>
-                    <label for="cellular_sessions_per_day">Sessions / day:</label><br />
-                    <input type="number" min="0" id="cellular_sessions_per_day" value="24"><br />
-                    <label for="cellular_session_duration_s">Session duration [s]:</label><br />
-                    <input type="number" min="0" id="cellular_session_duration_s" value="5">
+                    <legend>Coverage Conditions</legend>
+                    <div style="display:flex; flex-direction:column; gap:5px;">
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <label for="cell_cov_excellent" style="width:72px;">Excellent:</label>
+                            <input type="number" id="cell_cov_excellent" min="0" max="100" step="1" value="40"
+                                   style="width:60px;" oninput="onCoverageChange()">
+                            <span style="color:#555;">%</span>
+                        </div>
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <label for="cell_cov_good" style="width:72px;">Good:</label>
+                            <input type="number" id="cell_cov_good" min="0" max="100" step="1" value="40"
+                                   style="width:60px;" oninput="onCoverageChange()">
+                            <span style="color:#555;">%</span>
+                        </div>
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <label for="cell_cov_bad" style="width:72px;">Bad:</label>
+                            <input type="number" id="cell_cov_bad" min="0" max="100" step="1" value="20"
+                                   style="width:60px;" oninput="onCoverageChange()">
+                            <span style="color:#555;">%</span>
+                        </div>
+                        <div style="font-size:.8rem; color:#555; margin-top:2px;">
+                            Total: <span id="cell_cov_total" style="font-weight:bold; color:#008293;">100</span>%
+                            <span id="cell_cov_warn" style="color:#c0392b; display:none;"> ⚠ must sum to 100%</span>
+                        </div>
+                    </div>
                 </fieldset>
 
             </div>
@@ -634,13 +683,29 @@
             <legend>LoRa</legend>
             <div class="flexcontainer">
 
-                <fieldset class="flexitem" style="max-width:180px;">
+                <fieldset class="flexitem">
                     <legend>Radio Parameters</legend>
                     <input type="hidden" id="sf" value="10">
-                    <label for="tx_power">TX Power:</label><br />
-                    <div style="display:flex; align-items:center; gap:4px;">
-                        <input type="number" id="tx_power" value="19" min="0" max="22" step="0.1" style="width:70px;">
-                        <span style="color:#555; font-size:.9rem;">dBm</span>
+                    <div style="display:flex; gap:16px; align-items:flex-end;">
+                        <div>
+                            <label for="lorawan_region">LoRaWAN Region:</label><br />
+                            <select id="lorawan_region">
+                                <option value="EU868" selected>EU868</option>
+                                <option value="US915">US915</option>
+                                <option value="AU915">AU915</option>
+                                <option value="AS923">AS923</option>
+                                <option value="KR920">KR920</option>
+                                <option value="IN865">IN865</option>
+                                <option value="RU864">RU864</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="tx_power">TX Power:</label><br />
+                            <div style="display:flex; align-items:center; gap:4px;">
+                                <input type="number" id="tx_power" value="19" min="0" max="22" step="0.1" style="width:70px;">
+                                <span style="color:#555; font-size:.9rem;">dBm</span>
+                            </div>
+                        </div>
                     </div>
                 </fieldset>
 
@@ -774,10 +839,12 @@
     <!-- ════════════════════════════════════════════
          CALCULATE
     ═════════════════════════════════════════════ -->
-    <fieldset>
-        <legend>Estimation</legend>
-        <button onclick="calculate()">Calculate</button>
-    </fieldset>
+    <button onclick="calculate()"
+            style="background:#008293; color:#fff; border:none; border-radius:5px;
+                   padding:10px 0; font-size:1.05rem; font-weight:bold;
+                   cursor:pointer; letter-spacing:.03em; margin-top:6px;">
+        Calculate
+    </button>
 
     <!-- ════════════════════════════════════════════
          RESULTS
@@ -837,9 +904,19 @@
             </div>
 
             <div class="diskanalyzer-layout">
-                <div class="chart-box-sunburst">
-                    <h3>Power Consumption by Group</h3>
-                    <canvas id="sunburstChart" width="700" height="480"></canvas>
+                <div class="charts-row">
+                    <div class="chart-box-sunburst">
+                        <h3>Power Consumption by Group</h3>
+                        <canvas id="sunburstChart"></canvas>
+                    </div>
+                    <div class="chart-box-sunburst">
+                        <h3>Geolocation by Technology</h3>
+                        <canvas id="geolocDiskChart"></canvas>
+                    </div>
+                    <div class="chart-box-sunburst">
+                        <h3>Network by Technology</h3>
+                        <canvas id="networkDiskChart"></canvas>
+                    </div>
                 </div>
                 <div id="legend-box">
                     <h3>Consumption Breakdown <small style="font-weight:normal;color:#888;font-size:.75rem;">(click a group to expand)</small></h3>
@@ -1092,6 +1169,37 @@
     }
 
     /***********************************************************************
+     * DR distribution builder — reads current TX Strategy UI state.
+     * Returns [{dr, pct}, ...] where pct values sum to 100.
+     * ADR mode  → uses the user-editable ADR percentage grid.
+     * Non-ADR   → equal probability among enabled TX1 DR bits.
+     ***********************************************************************/
+    function getDrDistribution() {
+        const isAdr = document.getElementById('tx_strat_adr').checked;
+        const dist = [];
+
+        if (isAdr) {
+            for (let dr = 0; dr < 8; dr++) {
+                const pct = parseFloat(document.getElementById(`adr_pct_${dr}`).value) || 0;
+                if (pct > 0) dist.push({ dr, pct });
+            }
+        } else {
+            const active = [];
+            for (let dr = 0; dr < 8; dr++) {
+                if (document.getElementById(`tx1_dr_${dr}`).checked) active.push(dr);
+            }
+            if (active.length > 0) {
+                const pct = 100 / active.length;
+                active.forEach(dr => dist.push({ dr, pct }));
+            }
+        }
+
+        // Fallback: no DR configured → DR5 (SF7, fastest) for EU-like regions
+        if (dist.length === 0) dist.push({ dr: 5, pct: 100 });
+        return dist;
+    }
+
+    /***********************************************************************
      * Auto-load hardware measurements from hw_measurements.cfg at startup.
      * Developer-managed — not exposed to end users.
      ***********************************************************************/
@@ -1110,9 +1218,9 @@
      ***********************************************************************/
     const GEOLOC_TECHNO = {
         0x01: { name: 'AGNSS',      params: ['on_time', 'nb_sat']       },
-        0x02: { name: 'WiFi',       params: ['nb_ap']                   },
-        0x03: { name: 'BLE Scan 1', params: ['scan_dur', 'nb_beacons']  },
-        0x04: { name: 'BLE Scan 2', params: ['scan_dur', 'nb_beacons']  },
+        0x02: { name: 'WiFi',       params: []                           },
+        0x03: { name: 'BLE Scan 1', params: ['scan_dur']                },
+        0x04: { name: 'BLE Scan 2', params: ['scan_dur']                },
         0x05: { name: 'LP-GPS', params: [], lpgps: true },
         0x06: { name: 'GNSS',  params: ['ttff'], gnss: true },
     };
@@ -1123,7 +1231,7 @@
         on_time:    { label: 'On time [s]',          type: 'number', def: 45   },
         nb_sat:     { label: 'Num. satellites',      type: 'select', def: 5, opts: [1,2,3,4,5] },
         nb_ap:      { label: 'Num. APs',             type: 'select', def: 4, opts: [1,2,3,4]   },
-        scan_dur:   { label: 'Scan duration [ms]',   type: 'number', def: 3000 },
+        scan_dur:   { label: 'Scan duration [ms]',   type: 'number', def: 3000, readonly: true },
         nb_beacons: { label: 'Num. beacons',         type: 'select', def: 4, opts: [1,2,3,4]   },
     };
 
@@ -1177,8 +1285,9 @@
                 return `<label for="${eid}">${meta.label}:</label><br>
                         <select id="${eid}">${opts}</select><br>`;
             }
+            const roAttr = meta.readonly ? ' readonly title="Read from config file"' : '';
             return `<label for="${eid}">${meta.label}:</label><br>
-                    <input type="number" min="0" id="${eid}" value="${val}"><br>`;
+                    <input type="number" min="0" id="${eid}" value="${val}"${roAttr}><br>`;
         }).join('');
 
         // For GNSS only: build failure-reason breakdown (T0 / weak-signal split)
@@ -1233,6 +1342,8 @@
         const activeProfiles = profiles
             .map((slots, i) => ({ slots, i }))
             .filter(({ slots }) => slots.some(s => (s & 0x7F) !== 0));
+
+        document.getElementById('geoloc_techno_section').style.display = '';
 
         if (activeProfiles.length === 0) {
             container.innerHTML     = '';
@@ -1356,6 +1467,15 @@
         document.getElementById('net_usage_lora_pct').value = 100 - v;
     }
 
+    function onCoverageChange() {
+        const excellent = parseFloat(document.getElementById('cell_cov_excellent').value) || 0;
+        const good      = parseFloat(document.getElementById('cell_cov_good').value)      || 0;
+        const bad       = parseFloat(document.getElementById('cell_cov_bad').value)       || 0;
+        const total     = Math.round((excellent + good + bad) * 10) / 10;
+        document.getElementById('cell_cov_total').textContent = total;
+        document.getElementById('cell_cov_warn').style.display = Math.abs(total - 100) > 0.1 ? 'inline' : 'none';
+    }
+
     /***********************************************************************
      * Discharge profile preset handler
      ***********************************************************************/
@@ -1461,6 +1581,42 @@
         return result.components_ma[c.key] || 0;
     }
 
+    // Returns { text } for mAh-per-uplink of a network child, or null.
+    // LoRa  : average mAh per uplink = lora_current [mA] × 24h / N_lora_uplinks_per_day
+    // Cellular : weighted average from coverage distribution
+    function networkPerAction(childKey, cMa, inp) {
+        const bleMsgs = inp.ble?.ble1
+            ? (inp.ble.ble1.nof_msg_per_day || 0) + (inp.ble.ble2?.nof_msg_per_day || 0)
+            : (inp.ble?.nof_msg_per_day || 0);
+        const totalMsgsPerDay =
+            (inp.custom_msg?.nof_msg_per_day || 0) +
+            (inp.heartbeat?.nof_msg_per_day  || 0) +
+            (inp.status_msg?.nof_msg_per_day || 0) +
+            (inp.gps?.nof_msg_per_day        || 0) +
+            (inp.lpgps?.nof_msg_per_day      || 0) +
+            (inp.agps?.nof_msg_per_day       || 0) +
+            (inp.wifi?.nof_msg_per_day       || 0) +
+            bleMsgs;
+
+        if (childKey === '_lora') {
+            const loraFactor = (inp.net_usage_lora_pct || 0) / 100;
+            const n = totalMsgsPerDay * loraFactor;
+            if (!n || !cMa) return null;
+            const v = cMa * 24 / n;
+            return { text: v >= 0.001 ? v.toFixed(3) : v.toFixed(5) };
+        }
+        if (childKey === '_cellular') {
+            const cov = inp.cellular?.coverage_pct;
+            if (!cov) return null;
+            const v = (cov.excellent / 100) * 0.10
+                    + (cov.good      / 100) * 0.25
+                    + (cov.bad       / 100) * 0.60;
+            if (!v) return null;
+            return { text: v.toFixed(3) };
+        }
+        return null;
+    }
+
     // Returns { text, unit } for mAh-per-action of a geoloc child, or null if not applicable.
     function geoPerAction(childKey, cMa, inp) {
         let n, unit;
@@ -1479,7 +1635,9 @@
         return { text: s, unit };
     }
 
-    let sunburstChart = null;
+    let sunburstChart   = null;
+    let geolocDiskChart = null;
+    let networkDiskChart = null;
     let drChartTx1 = null;
     let drChartTx2 = null;
 
@@ -1612,18 +1770,18 @@
                         technoMsg.agnss.nb_sat   = getP('nb_sat', 5);
                         break;
                     case 0x02:  // WiFi
-                        technoMsg.wifi.nof    += runsPerDay;
-                        technoMsg.wifi.nb_ap   = getP('nb_ap', 4);
+                        technoMsg.wifi.nof   += runsPerDay;
+                        technoMsg.wifi.nb_ap  = getConfigDefault(cfg, 0x02, 'nb_ap');
                         break;
                     case 0x03:  // BLE Scan 1
                         technoMsg.ble1.nof        += runsPerDay;
                         technoMsg.ble1.scan_dur_ms = getP('scan_dur', 3000);
-                        technoMsg.ble1.nb_beacons  = getP('nb_beacons', 4);
+                        technoMsg.ble1.nb_beacons  = getConfigDefault(cfg, 0x03, 'nb_beacons');
                         break;
                     case 0x04:  // BLE Scan 2
                         technoMsg.ble2.nof        += runsPerDay;
                         technoMsg.ble2.scan_dur_ms = getP('scan_dur', 3000);
-                        technoMsg.ble2.nb_beacons  = getP('nb_beacons', 4);
+                        technoMsg.ble2.nb_beacons  = getConfigDefault(cfg, 0x04, 'nb_beacons');
                         break;
                 }
 
@@ -2034,8 +2192,8 @@
             const dS = txDualStatic ? 1 : 0, dM = txDualMotion ? 1 : 0;
             tx2StatusPerDay      = loraStatusPerDay  * (staticFrac * dS + motionFrac * dM);
             tx2HbPerDay          = loraHbPerDay       * (staticFrac * dS + motionFrac * dM);
-            tx2ProbeStaticPerDay = 0;  // probes use TX1 only
-            tx2ProbeMotionPerDay = 0;  // probes use TX1 only
+            tx2ProbeStaticPerDay = 0;  // linkcheck uses TX1 only
+            tx2ProbeMotionPerDay = 0;  // linkcheck uses TX1 only
             tx2TotalPerDay       = tx2StatusPerDay + tx2HbPerDay;
             tx2StatusPerTypePD   = numStatusTypes > 0 ? tx2StatusPerDay / numStatusTypes : 0;
 
@@ -2049,8 +2207,8 @@
                 for (let i = 0; i < 8; i++)
                     tx1DRProbs[i] = sFr * (txAdr ? adrProbs[i] : byte1Probs[i]) + mFr * byte1Probs[i];
             }
-            rx1Tx1 = loraTotalPerDay; rx2Tx1 = loraTotalPerDay;
-            rx1Tx2 = tx2TotalPerDay;  rx2Tx2 = tx2TotalPerDay;
+            rx1Tx1 = loraDisplayTotal; rx2Tx1 = loraDisplayTotal;
+            rx1Tx2 = tx2TotalPerDay;   rx2Tx2 = tx2TotalPerDay;
         }
 
         // TX2 position uplinks — scaled by LoRa factor; no TX2 concept for cellular
@@ -2549,10 +2707,14 @@
      ***********************************************************************/
     function calculate() {
 
+        document.getElementById('geoloc_techno_section').style.display = '';
+
         const input = {
             product:               document.getElementById('product').value,
             tx_power:              parseFloat(document.getElementById('tx_power').value) || 19,
-            sf:                    parseInt(document.getElementById('sf').value),
+            lorawan_region:        document.getElementById('lorawan_region').value,
+            dr_distribution:       getDrDistribution(),
+            sf:                    parseInt(document.getElementById('sf').value),  // fallback only
             battery_capacity_mah:  parseFloat(document.getElementById('battery_capacity_mah').value) || 1300,
             annual_discharge_pct:  parseFloat(document.getElementById('annual_discharge_pct').value) || 2.4,
             cpu_idle_ua: parseFloat(document.getElementById('cpu_idle_ua').value) || 0,
@@ -2637,9 +2799,11 @@
             cellular: (function() {
                 const isCombo = document.getElementById('product').value === 'combo_tracker';
                 return {
-                    tech:               isCombo ? (document.getElementById('cellular_tech').value || null) : null,
-                    sessions_per_day:   isCombo ? (parseInt(document.getElementById('cellular_sessions_per_day').value)     || 0) : 0,
-                    session_duration_s: isCombo ? (parseFloat(document.getElementById('cellular_session_duration_s').value) || 0) : 0,
+                    coverage_pct: {
+                        excellent: isCombo ? (parseFloat(document.getElementById('cell_cov_excellent').value) || 0) : 0,
+                        good:      isCombo ? (parseFloat(document.getElementById('cell_cov_good').value)      || 0) : 0,
+                        bad:       isCombo ? (parseFloat(document.getElementById('cell_cov_bad').value)       || 0) : 0,
+                    },
                 };
             })(),
             recovery_beacon: {
@@ -2648,6 +2812,26 @@
                 tx_power:     parseFloat(document.getElementById('beacon_tx_power').value) || 19,
             },
         };
+
+        // Inject TX2 factor + DR distribution from lorawan_s1_tx_strategy
+        (function() {
+            const cfg = window.deviceConfig || {};
+            const txStratRaw = parseInt(cfg.lorawan_s1_tx_strategy);
+            if (isNaN(txStratRaw)) return;
+            const byte0 = txStratRaw & 0xFF;
+            const byte2 = (txStratRaw >> 16) & 0xFF;
+            const dS = (byte0 & 0x02) ? 1 : 0;
+            const dM = (byte0 & 0x04) ? 1 : 0;
+            const _mp = parseFloat(document.getElementById('motion_pct').value);
+            const mFrac = (isNaN(_mp) ? 50 : _mp) / 100;
+            input.lora_tx2_factor = (1 - mFrac) * dS + mFrac * dM;
+            const active2 = [];
+            for (let i = 0; i < 8; i++) if (byte2 & (1 << i)) active2.push(i);
+            if (active2.length > 0) {
+                const pct2 = 100 / active2.length;
+                input.lora_tx2_dr_distribution = active2.map(dr => ({ dr, pct: pct2 }));
+            }
+        })();
 
         const result = calculate_battery_life_time(input);
         const totalUa = result.total_current_ma * 1000;
@@ -2710,7 +2894,7 @@
                     };
                 }).filter(Boolean);
 
-                const FONT_SIZE = 11.5;
+                const FONT_SIZE = 13;
                 const SPACING   = FONT_SIZE * 1.8;
                 function spread(group) {
                     group.sort((a, b) => a.naturalY - b.naturalY);
@@ -2776,11 +2960,14 @@
                     }]
                 },
                 options: {
-                    responsive: false,
-                    layout: { padding: { left: 170, right: 170, top: 14, bottom: 14 } },
+                    responsive: true,
+                    maintainAspectRatio: false,
                     cutout: '46%',
                     plugins: {
-                        legend: { display: false },
+                        legend: {
+                            display: true, position: 'bottom',
+                            labels: { boxWidth: 12, font: { size: 11 }, padding: 8 }
+                        },
                         tooltip: {
                             bodyFont: { size: 12 },
                             titleFont: { size: 12, weight: 'bold' },
@@ -2795,8 +2982,76 @@
                         }
                     }
                 },
-                plugins: [outsideLabelPlugin],
             }
+        );
+
+        // ── Helper: build and render a sub-disk chart ─────────────────────
+        function makeDisk(canvasId, items, tooltipMahFn) {
+            const nonZero = items.filter(x => x.mA > 0);
+            const total   = nonZero.reduce((s, x) => s + x.mA, 0);
+            return new Chart(
+                document.getElementById(canvasId).getContext('2d'),
+                {
+                    type: 'doughnut',
+                    data: {
+                        labels: nonZero.map(x => x.label),
+                        datasets: [{
+                            data:            nonZero.map(x => total > 0 ? x.mA / total * 100 : 0),
+                            backgroundColor: nonZero.map(x => x.color),
+                            borderWidth: 2,
+                            borderColor: '#fff',
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        cutout: '46%',
+                        plugins: {
+                            legend: {
+                                display: true, position: 'bottom',
+                                labels: { boxWidth: 12, font: { size: 11 }, padding: 8 }
+                            },
+                            tooltip: {
+                                bodyFont: { size: 12 },
+                                titleFont: { size: 12, weight: 'bold' },
+                                callbacks: {
+                                    title: ctx => ctx[0].label,
+                                    label: ctx => {
+                                        const mah = tooltipMahFn(nonZero[ctx.dataIndex]);
+                                        return ` ${mah} mAh  (${ctx.parsed.toFixed(1)}%)`;
+                                    }
+                                }
+                            }
+                        }
+                    },
+                }
+            );
+        }
+
+        // ── Geolocation by Technology disk ───────────────────────────────
+        const geolocGroup   = GROUPS.find(g => g.key === 'geolocation');
+        const geolocItems   = geolocGroup.children.map(c => ({
+            label: c.label,
+            mA:    getChildValue(c, result),
+            color: c.color,
+        }));
+        if (geolocDiskChart) geolocDiskChart.destroy();
+        geolocDiskChart = makeDisk(
+            'geolocDiskChart', geolocItems,
+            x => (x.mA * result.battery_life_days * 24).toFixed(1)
+        );
+
+        // ── Network by Technology disk ────────────────────────────────────
+        const networkGroup  = GROUPS.find(g => g.key === 'network');
+        const networkItems  = networkGroup.children.map(c => ({
+            label: c.label,
+            mA:    getChildValue(c, result),
+            color: c.color,
+        }));
+        if (networkDiskChart) networkDiskChart.destroy();
+        networkDiskChart = makeDisk(
+            'networkDiskChart', networkItems,
+            x => (x.mA * result.battery_life_days * 24).toFixed(1)
         );
 
         // ── Build collapsible legend ──────────────────────────────────────
@@ -2837,8 +3092,10 @@
                 const cMa  = getChildValue(c, result);
                 const cMah = fmtMah(cMa);
                 const cPct = totalUa > 0 ? (cMa * 1000 / totalUa * 100).toFixed(1) : '0.0';
-                const pa   = g.key === 'geolocation' ? geoPerAction(c.key, cMa, input) : null;
-                const paHTML = `<td class="center">${pa ? pa.text : ''}</td>`;
+                const pa   = g.key === 'geolocation' ? geoPerAction(c.key, cMa, input)
+                           : g.key === 'network'     ? networkPerAction(c.key, cMa, input)
+                           : null;
+                const paHTML = `<td class="center" style="color:${pa ? '#008293' : '#bbb'};">${pa ? pa.text : '—'}</td>`;
                 const cRow = document.createElement('tr');
                 cRow.className = 'comp-row';
                 cRow.style.display = 'none';
@@ -3031,7 +3288,9 @@
                 const cMa  = getChildValue(c, result);
                 const cMah = toMah(cMa);
                 const cPct = totalUa > 0 ? (cMa * 1000 / totalUa * 100).toFixed(1) : '0.0';
-                const pa   = g.key === 'geolocation' ? geoPerAction(c.key, cMa, input) : null;
+                const pa   = g.key === 'geolocation' ? geoPerAction(c.key, cMa, input)
+                           : g.key === 'network'     ? networkPerAction(c.key, cMa, input)
+                           : null;
                 breakdownBody.push([
                     { canvas: [{ type: 'rect', x: 2, y: 3, w: 3, h: 5, r: 1, color: c.color || g.color }],
                       margin: [0, 1, 0, 1] },
@@ -3039,7 +3298,7 @@
                     td(cMah,       { alignment: 'right', color: '#555' }),
                     td(`${cPct}%`, { alignment: 'right', color: '#777' }),
                     pa ? td(pa.text, { alignment: 'center', color: '#008293', fontSize: 6.5 })
-                       : td('', {}),
+                       : td('—',     { alignment: 'center', color: '#aaaaaa', fontSize: 6.5 }),
                 ]);
             });
         });
