@@ -216,7 +216,7 @@ const WIFI_MIN_PAYL_LEN               = GEOLOC_HDR;       // 8 (7 bytes/BSSID, n
 const WIFI_ADDITIONAL_BSSID_PAYL_LEN  = 7;
 const BLE_MIN_PAYL_LEN                = GEOLOC_HDR;       // 8 (7 bytes/beacon, no tech-specific minimum)
 const BLE_ADDITIONAL_BSSID_PAYL_LEN   = 7;
-const RECOVERY_BEACON_PAYL_LEN        = 4;
+const RECOVERY_BEACON_MAH             = 0.00036;  // energy per single beacon transmission [mAh]
 
 const SCANCOLL_MIN_PAYL_LEN                  = 8;
 const SCANCOLL_ADDITIONAL_MACADDR_PAYL_LEN   = 7;
@@ -358,13 +358,18 @@ function calculate_cellular_current(coverage_pct, uplinks_per_day) {
 }
 
 /**
- * Recovery beacon: periodic LoRa TX at configurable SF/power.
- * interval_min = 0 means disabled.
+ * Recovery beacon: proprietary short-range transmission (not LoRa).
+ * Each beacon consumes RECOVERY_BEACON_MAH regardless of state.
+ * Returns { motion, static } average currents in mA.
  */
-function calculate_recovery_beacon_current(beacon_interval_min, sf, tx_power, product) {
-    if (beacon_interval_min <= 0) return 0;
-    const nof_msg_per_day = (24 * 60) / beacon_interval_min;
-    return calculate_lora_current(sf, tx_power, RECOVERY_BEACON_PAYL_LEN, nof_msg_per_day, product);
+function calculate_recovery_beacon_current(motion_period_s, static_period_s, motion_frac) {
+    const motionCurrent = (motion_period_s > 0)
+        ? motion_frac * RECOVERY_BEACON_MAH * 3600 / motion_period_s
+        : 0;
+    const staticCurrent = (static_period_s > 0)
+        ? (1 - motion_frac) * RECOVERY_BEACON_MAH * 3600 / static_period_s
+        : 0;
+    return { motion: motionCurrent, static: staticCurrent };
 }
 
 
@@ -543,14 +548,16 @@ function calculate_battery_life_time(input) {
     );
 
     // Recovery beacon
-    const recovery_beacon_current = calculate_recovery_beacon_current(
-        input.recovery_beacon.interval_min,
-        input.recovery_beacon.sf,
-        input.recovery_beacon.tx_power,
-        product
+    const _beacon = calculate_recovery_beacon_current(
+        input.recovery_beacon.motion_period_s,
+        input.recovery_beacon.static_period_s,
+        input.recovery_beacon.motion_frac
     );
+    const recovery_beacon_motion_current = _beacon.motion;
+    const recovery_beacon_static_current = _beacon.static;
+    const recovery_beacon_current = recovery_beacon_motion_current + recovery_beacon_static_current;
 
-    // Battery self-discharge (leakage)
+    // Battery self-discharge: applied on the full (total) capacity, not the usable fraction.
     const battery_leakage_current = calculate_battery_leakage_current(
         input.battery_capacity_mah,
         input.annual_discharge_pct
@@ -558,19 +565,21 @@ function calculate_battery_life_time(input) {
     const fix_current = HW.quiescent_current_ma + battery_leakage_current;
 
     // Group totals
+    // Geolocation: HW scan/fix current only. LoRa TX for all message types lives in lora_total.
     const cpu_total      = cpu_idle_current + monitoring_current + fix_current;
-    const geoloc_total   = gps_geoloc_current + lpgps_geoloc_current + agps_geoloc_current + wifi_geoloc_current + ble_geoloc_current
-                         + gps_lora_current + lpgps_lora_current + agps_lora_current + wifi_lora_current + ble_lora_current;
+    const geoloc_total   = gps_geoloc_current + lpgps_geoloc_current + agps_geoloc_current + wifi_geoloc_current + ble_geoloc_current;
     const cellular_total = cellular_current;
     const lora_total     = custom_msg_lora_current + heartbeat_lora_current + status_lora_current
                          + scan_collection_lora_current + custom_ble_usage_current + scan_collection_current
-                         + ble_lora_current;
+                         + gps_lora_current + lpgps_lora_current + agps_lora_current + wifi_lora_current + ble_lora_current;
     const beacon_total   = recovery_beacon_current;
 
     const total_current = cpu_total + geoloc_total + cellular_total + lora_total + beacon_total;
 
+    // Lifetime uses the usable portion of the battery; self-discharge already accounts for total.
+    const usable_mah = input.usable_capacity_mah ?? input.battery_capacity_mah;
     const battery_life_days = Math.round(
-        10 * (input.battery_capacity_mah / total_current) / 24
+        10 * (usable_mah / total_current) / 24
     ) / 10;
 
     // Per-component breakdown (mA)
@@ -578,20 +587,21 @@ function calculate_battery_life_time(input) {
         cpu_quiescent:        fix_current,
         cpu_idle:             cpu_idle_current,
         cpu_monitoring:       monitoring_current,
-        geoloc_gps:           gps_geoloc_current   + gps_lora_current,
-        geoloc_lpgps:         lpgps_geoloc_current + lpgps_lora_current,
-        geoloc_agps:          agps_geoloc_current  + agps_lora_current,
-        geoloc_wifi:          wifi_geoloc_current + wifi_lora_current,
-        geoloc_ble:           ble_geoloc_current  + ble_lora_current,  // combined (manual/fallback)
-        geoloc_ble1:          ble1_hw + ble1_lora,                     // BLE Scan 1 (profile mode)
-        geoloc_ble2:          ble2_hw + ble2_lora,                     // BLE Scan 2 (0 if not split)
+        geoloc_gps:           gps_geoloc_current,
+        geoloc_lpgps:         lpgps_geoloc_current,
+        geoloc_agps:          agps_geoloc_current,
+        geoloc_wifi:          wifi_geoloc_current,
+        geoloc_ble:           ble_geoloc_current,   // combined (manual/fallback)
+        geoloc_ble1:          ble1_hw,              // BLE Scan 1 (profile mode)
+        geoloc_ble2:          ble2_hw,              // BLE Scan 2
         cellular:             cellular_current,
         lora_heartbeat:       heartbeat_lora_current,
         lora_status_msg:      status_lora_current,
         lora_custom_msg:      custom_msg_lora_current,
         lora_scan_collection: scan_collection_lora_current + scan_collection_current,
         lora_custom_ble:      custom_ble_usage_current,
-        recovery_beacon:      recovery_beacon_current,
+        recovery_beacon_motion: recovery_beacon_motion_current,
+        recovery_beacon_static: recovery_beacon_static_current,
     };
 
     const distribution = {};
@@ -614,8 +624,15 @@ function calculate_battery_life_time(input) {
         components_ma:     components,
         distribution_pct:  distribution,
         group_currents_ma,
+        lora: {
+            dr_sf_str:  drSfStr,
+            tx2_dr_str: tx2DrStr,
+            tx2_factor,
+        },
         battery: {
-            capacity_mah:         input.battery_capacity_mah,
+            total_capacity_mah:   input.battery_capacity_mah,
+            capacity_mah:         usable_mah,
+            usable_pct:           input.usable_pct ?? 100,
             annual_discharge_pct: input.annual_discharge_pct,
             annual_discharge_mah: Math.round(input.battery_capacity_mah * input.annual_discharge_pct / 100 * 10) / 10,
             leakage_current_ua:   Math.round(battery_leakage_current * 1000 * 10) / 10,

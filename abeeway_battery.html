@@ -457,9 +457,16 @@
 
             <fieldset class="flexitem">
                 <legend>Battery Characteristics</legend>
-                <label for="battery_capacity_mah">Usable capacity [mAh]:</label><br />
-                <input type="number" min="1" id="battery_capacity_mah" value="1300"><br />
-                <small style="color:#666;">Enter the practical (usable) battery capacity for the selected product.</small>
+                <label for="battery_capacity_mah">Battery capacity [mAh]:</label><br />
+                <input type="number" min="1" id="battery_capacity_mah" value="1300"
+                       oninput="onBatteryCapacityChange()"><br />
+                <label for="battery_usable_pct" style="margin-top:6px; display:block;">Usable capacity [%]:</label>
+                <input type="number" min="1" max="100" step="1" id="battery_usable_pct" value="80"
+                       oninput="onBatteryCapacityChange()"><br />
+                <small style="color:#666;">
+                    Usable capacity = <strong id="usable_capacity_display">1040</strong> mAh
+                    (lifetime estimation). Self-discharge applies to the full battery capacity.
+                </small>
                 <hr />
                 <label for="discharge_profile">Deployment environment:</label><br />
                 <select id="discharge_profile" onchange="onDischargeProfileChange()">
@@ -807,30 +814,25 @@
          SECTION 6 — Recovery Beacon
     ═════════════════════════════════════════════ -->
     <fieldset>
-        <legend>Recovery Beacon Consumption</legend>
+        <legend>Recovery Beacon</legend>
         <div class="flexcontainer">
 
             <div class="flexitem">
-                <label for="beacon_interval_min">Beacon interval [min] (0 = disabled):</label><br />
-                <input type="number" min="0" id="beacon_interval_min" value="0"><br />
-                <small style="color:#666;">Periodic LoRa transmission (4-byte ID) for locating a lost device.</small>
+                <label for="rbeacon_motion_period">Beaconing period in motion [s]<br>
+                    <span style="font-weight:normal;color:#888;">(lr_rbeacon_motion_period — from config)</span>
+                </label><br />
+                <input type="number" min="0" id="rbeacon_motion_period" value="0" readonly
+                       title="Read from config file"><br />
+                <small style="color:#666;">0 = disabled in motion.</small>
             </div>
 
             <div class="flexitem">
-                <label for="beacon_sf">Beacon SF:</label><br />
-                <select id="beacon_sf">
-                    <option value="7">SF7</option>
-                    <option value="8">SF8</option>
-                    <option value="9">SF9</option>
-                    <option value="10">SF10</option>
-                    <option value="11">SF11</option>
-                    <option value="12" selected>SF12</option>
-                </select><br />
-                <label for="beacon_tx_power">Beacon TX Power:</label><br />
-                <div style="display:flex; align-items:center; gap:4px;">
-                    <input type="number" id="beacon_tx_power" value="19" min="0" max="22" step="0.1" style="width:70px;">
-                    <span style="color:#555; font-size:.9rem;">dBm</span>
-                </div>
+                <label for="rbeacon_static_period">Beaconing period in static [s]<br>
+                    <span style="font-weight:normal;color:#888;">(lr_rbeacon_static_period — from config)</span>
+                </label><br />
+                <input type="number" min="0" id="rbeacon_static_period" value="0" readonly
+                       title="Read from config file"><br />
+                <small style="color:#666;">0 = disabled in static.</small>
             </div>
 
         </div>
@@ -870,7 +872,7 @@
                 <div class="kpi-card">
                     <div class="kpi-value" id="kpi_capacity">—</div>
                     <div class="kpi-unit">mAh</div>
-                    <div class="kpi-label">Battery Capacity</div>
+                    <div class="kpi-label">Usable Capacity</div>
                 </div>
                 <div class="kpi-card">
                     <div class="kpi-value" id="kpi_annual_discharge_mah">—</div>
@@ -887,10 +889,10 @@
                 </fieldset>
             </div>
 
-            <!-- ── General CPU Statistics ────────────────────────────────── -->
+            <!-- ── General Consumptions ──────────────────────────────────── -->
             <div id="cpu_stats_section" style="display:none;">
                 <fieldset>
-                    <legend>General CPU Statistics</legend>
+                    <legend>General Consumptions</legend>
                     <div id="cpu_stats_content"></div>
                 </fieldset>
             </div>
@@ -1015,9 +1017,11 @@
                 document.getElementById(id).value = val;
             }
         };
-        setField('heartbeat_period_s',   parseFloat(cfg.lorawan_heartbeat_period));
-        setField('status_period_s',      parseFloat(cfg.core_status_period));
-        setField('monitoring_period_s',  parseFloat(cfg.core_monitoring_period));
+        setField('heartbeat_period_s',     parseFloat(cfg.lorawan_heartbeat_period));
+        setField('status_period_s',        parseFloat(cfg.core_status_period));
+        setField('monitoring_period_s',    parseFloat(cfg.core_monitoring_period));
+        setField('rbeacon_motion_period',  parseFloat(cfg.lr_rbeacon_motion_period));
+        setField('rbeacon_static_period',  parseFloat(cfg.lr_rbeacon_static_period));
 
         if (cfg.net_selection !== undefined && !isNaN(parseInt(cfg.net_selection))) {
             document.getElementById('net_selection').value = parseInt(cfg.net_selection);
@@ -1479,6 +1483,13 @@
     /***********************************************************************
      * Discharge profile preset handler
      ***********************************************************************/
+    function onBatteryCapacityChange() {
+        const total   = parseFloat(document.getElementById('battery_capacity_mah').value) || 0;
+        const usable  = parseFloat(document.getElementById('battery_usable_pct').value)   || 0;
+        const display = document.getElementById('usable_capacity_display');
+        if (display) display.textContent = Math.round(total * usable / 100);
+    }
+
     function onDischargeProfileChange() {
         const sel   = document.getElementById('discharge_profile');
         const field = document.getElementById('annual_discharge_pct');
@@ -1562,7 +1573,8 @@
         {
             key: 'recovery_beacon', label: 'Recovery Beacon', color: '#1a3a4a',
             children: [
-                { key: 'recovery_beacon', label: 'Periodic LoRa Beacon', color: '#2a5568' },
+                { key: 'recovery_beacon_motion', label: 'Beaconing in Motion', color: '#2a5568' },
+                { key: 'recovery_beacon_static', label: 'Beaconing in Static', color: '#3d7a8a' },
             ]
         },
     ];
@@ -1618,15 +1630,16 @@
     }
 
     // Returns { text, unit } for mAh-per-action of a geoloc child, or null if not applicable.
+    // cMa is HW-only (LoRa TX is tracked separately in the network group).
     function geoPerAction(childKey, cMa, inp) {
         let n, unit;
         switch (childKey) {
-            case 'geoloc_gps':   n = inp.gps?.nof_runs_per_day   ?? inp.gps?.nof_msg_per_day;   unit = 'fix'; break;
-            case 'geoloc_lpgps': n = inp.lpgps?.nof_runs_per_day ?? inp.lpgps?.nof_msg_per_day; unit = 'fix'; break;
-            case 'geoloc_agps':  n = inp.agps?.nof_msg_per_day;  unit = 'fix'; break;
-            case 'geoloc_wifi': n = inp.wifi?.nof_msg_per_day; unit = 'scan'; break;
-            case 'geoloc_ble1': n = inp.ble?.ble1?.nof_msg_per_day ?? inp.ble?.nof_msg_per_day; unit = 'scan'; break;
-            case 'geoloc_ble2': n = inp.ble?.ble2?.nof_msg_per_day; unit = 'scan'; break;
+            case 'geoloc_gps':   n = inp.gps?.nof_runs_per_day   ?? inp.gps?.nof_msg_per_day;   unit = 'fix';  break;
+            case 'geoloc_lpgps': n = inp.lpgps?.nof_runs_per_day ?? inp.lpgps?.nof_msg_per_day; unit = 'fix';  break;
+            case 'geoloc_agps':  n = inp.agps?.nof_msg_per_day;                                 unit = 'fix';  break;
+            case 'geoloc_wifi':  n = inp.wifi?.nof_msg_per_day;                                 unit = 'scan'; break;
+            case 'geoloc_ble1':  n = inp.ble?.ble1?.nof_msg_per_day ?? inp.ble?.nof_msg_per_day; unit = 'scan'; break;
+            case 'geoloc_ble2':  n = inp.ble?.ble2?.nof_msg_per_day;                            unit = 'scan'; break;
             default: return null;
         }
         if (!n || n <= 0 || !cMa) return null;
@@ -1891,7 +1904,7 @@
     }
 
     /***********************************************************************
-     * Render General CPU Statistics section
+     * Render General Consumptions section
      ***********************************************************************/
     function renderCpuStats(result, input) {
         const section = document.getElementById('cpu_stats_section');
@@ -1920,6 +1933,34 @@
                 <td class="right"><strong>${fmtI(monTotal)}</strong> total</td>
                </tr>`;
 
+        // Recovery beacon stats
+        const rbeaconMotionPeriod = input.recovery_beacon?.motion_period_s || 0;
+        const rbeaconStaticPeriod = input.recovery_beacon?.static_period_s || 0;
+        const motionFrac  = input.recovery_beacon?.motion_frac ?? 0.5;
+        const rbeaconMotionPerDay = rbeaconMotionPeriod > 0 ? motionFrac * 86400 / rbeaconMotionPeriod : 0;
+        const rbeaconStaticPerDay = rbeaconStaticPeriod > 0 ? (1 - motionFrac) * 86400 / rbeaconStaticPeriod : 0;
+        const rbeaconMotionTotal  = Math.round(rbeaconMotionPerDay * lifeDays);
+        const rbeaconStaticTotal  = Math.round(rbeaconStaticPerDay * lifeDays);
+        const beaconMah = ((result.group_currents_ma.recovery_beacon || 0) * lifetimeH).toFixed(3);
+
+        const beaconMotionRow = rbeaconMotionPeriod <= 0
+            ? `<tr><td>Recovery beacon in motion</td><td colspan="3" style="color:#aaa;">Disabled (period = 0)</td></tr>`
+            : `<tr>
+                <td>Recovery beacon in motion</td>
+                <td class="right">${rbeaconMotionPeriod} s</td>
+                <td class="right">${fmtF(rbeaconMotionPerDay)} / day</td>
+                <td class="right"><strong>${fmtI(rbeaconMotionTotal)}</strong> total</td>
+               </tr>`;
+
+        const beaconStaticRow = rbeaconStaticPeriod <= 0
+            ? `<tr><td>Recovery beacon in static</td><td colspan="3" style="color:#aaa;">Disabled (period = 0)</td></tr>`
+            : `<tr>
+                <td>Recovery beacon in static</td>
+                <td class="right">${rbeaconStaticPeriod} s</td>
+                <td class="right">${fmtF(rbeaconStaticPerDay)} / day</td>
+                <td class="right"><strong>${fmtI(rbeaconStaticTotal)}</strong> total</td>
+               </tr>`;
+
         content.innerHTML = `
             <table class="geoloc-stats-table" style="margin-bottom:10px;">
                 <thead>
@@ -1932,11 +1973,14 @@
                 </thead>
                 <tbody>
                     ${monRow}
+                    ${beaconMotionRow}
+                    ${beaconStaticRow}
                 </tbody>
             </table>
             <div style="font-size:.85rem; color:#555;">
                 CPU &amp; System total consumption: <strong style="color:#008293;">${cpuMah} mAh</strong>
-                over the estimated battery lifetime (${Math.round(lifeDays).toLocaleString()} days).
+                — Recovery beacon total: <strong style="color:#1a3a4a;">${beaconMah} mAh</strong>
+                — over the estimated battery lifetime (${Math.round(lifeDays).toLocaleString()} days).
             </div>`;
     }
 
@@ -2716,6 +2760,9 @@
             dr_distribution:       getDrDistribution(),
             sf:                    parseInt(document.getElementById('sf').value),  // fallback only
             battery_capacity_mah:  parseFloat(document.getElementById('battery_capacity_mah').value) || 1300,
+            usable_pct:            parseFloat(document.getElementById('battery_usable_pct').value)   || 80,
+            usable_capacity_mah:   (parseFloat(document.getElementById('battery_capacity_mah').value) || 1300)
+                                 * (parseFloat(document.getElementById('battery_usable_pct').value)   || 80) / 100,
             annual_discharge_pct:  parseFloat(document.getElementById('annual_discharge_pct').value) || 2.4,
             cpu_idle_ua: parseFloat(document.getElementById('cpu_idle_ua').value) || 0,
 
@@ -2807,9 +2854,12 @@
                 };
             })(),
             recovery_beacon: {
-                interval_min: parseFloat(document.getElementById('beacon_interval_min').value) || 0,
-                sf:           parseInt(document.getElementById('beacon_sf').value),
-                tx_power:     parseFloat(document.getElementById('beacon_tx_power').value) || 19,
+                motion_period_s: parseFloat(document.getElementById('rbeacon_motion_period').value) || 0,
+                static_period_s: parseFloat(document.getElementById('rbeacon_static_period').value) || 0,
+                motion_frac: (function() {
+                    const _mp = parseFloat(document.getElementById('motion_pct').value);
+                    return (isNaN(_mp) ? 50 : _mp) / 100;
+                })(),
             },
         };
 
@@ -3092,8 +3142,9 @@
                 const cMa  = getChildValue(c, result);
                 const cMah = fmtMah(cMa);
                 const cPct = totalUa > 0 ? (cMa * 1000 / totalUa * 100).toFixed(1) : '0.0';
-                const pa   = g.key === 'geolocation' ? geoPerAction(c.key, cMa, input)
-                           : g.key === 'network'     ? networkPerAction(c.key, cMa, input)
+                const pa   = g.key === 'geolocation'     ? geoPerAction(c.key, cMa, input)
+                           : g.key === 'network'         ? networkPerAction(c.key, cMa, input)
+                           : g.key === 'recovery_beacon' ? (cMa > 0 ? { text: RECOVERY_BEACON_MAH.toFixed(6) } : null)
                            : null;
                 const paHTML = `<td class="center" style="color:${pa ? '#008293' : '#bbb'};">${pa ? pa.text : '—'}</td>`;
                 const cRow = document.createElement('tr');
@@ -3163,59 +3214,93 @@
         const mPct   = document.getElementById('motion_pct').value;
         const sPct   = document.getElementById('static_pct').value;
 
-        // ── Clean PDF doughnut image (no padding, no outside labels) ─────
-        const pdfChartImg = (() => {
-            const SIZE = 300;
-            const tmp  = document.createElement('canvas');
-            tmp.width  = SIZE;
-            tmp.height = SIZE;
-            const c2   = tmp.getContext('2d');
-            const cx   = SIZE / 2, cy = SIZE / 2;
+        // ── Disk image renderer: clean donut → PNG data URL ──────────────
+        function renderDisk(items, SIZE = 240) {
+            const nonZero = items.filter(x => x.mA > 0);
+            if (nonZero.length === 0) return null;
+            const total  = nonZero.reduce((s, x) => s + x.mA, 0) || 1;
+            const tmp    = document.createElement('canvas');
+            tmp.width    = SIZE;
+            tmp.height   = SIZE;
+            const c2     = tmp.getContext('2d');
+            const cx = SIZE / 2, cy = SIZE / 2;
             const outerR = SIZE / 2 - 4;
             const innerR = outerR * 0.46;
-
-            const vals = [], cols = [];
-            GROUPS.forEach(g => {
-                vals.push(totalUa > 0 ? getGroupTotal(g, result) * 1000 / totalUa * 100 : 0);
-                cols.push(g.color);
-            });
-            const total = vals.reduce((s, v) => s + v, 0) || 1;
-
-            // Draw filled segments
             let a = -Math.PI / 2;
-            vals.forEach((v, i) => {
-                const sweep = (v / total) * 2 * Math.PI;
-                c2.beginPath();
-                c2.moveTo(cx, cy);
+            nonZero.forEach(x => {
+                const sweep = (x.mA / total) * 2 * Math.PI;
+                c2.beginPath(); c2.moveTo(cx, cy);
                 c2.arc(cx, cy, outerR, a, a + sweep);
-                c2.closePath();
-                c2.fillStyle = cols[i];
-                c2.fill();
+                c2.closePath(); c2.fillStyle = x.color; c2.fill();
                 a += sweep;
             });
-
-            // White dividers
             a = -Math.PI / 2;
-            vals.forEach(v => {
-                const sweep = (v / total) * 2 * Math.PI;
-                c2.beginPath();
-                c2.moveTo(cx, cy);
+            nonZero.forEach(x => {
+                const sweep = (x.mA / total) * 2 * Math.PI;
+                c2.beginPath(); c2.moveTo(cx, cy);
                 c2.arc(cx, cy, outerR, a, a + sweep);
-                c2.closePath();
-                c2.strokeStyle = '#fff';
-                c2.lineWidth = 3;
-                c2.stroke();
+                c2.closePath(); c2.strokeStyle = '#fff'; c2.lineWidth = 3; c2.stroke();
                 a += sweep;
             });
-
-            // Donut hole
-            c2.beginPath();
-            c2.arc(cx, cy, innerR, 0, 2 * Math.PI);
-            c2.fillStyle = '#fff';
-            c2.fill();
-
+            c2.beginPath(); c2.arc(cx, cy, innerR, 0, 2 * Math.PI);
+            c2.fillStyle = '#fff'; c2.fill();
             return tmp.toDataURL('image/png');
-        })();
+        }
+
+        // ── Build disk panel: image + compact legend for PDF ──────────────
+        function diskPanel(title, img, items, groupTotalMa) {
+            const nonZero = items.filter(x => x.mA > 0);
+            const legendRows = nonZero.map(x => {
+                const pct = groupTotalMa > 0 ? (x.mA / groupTotalMa * 100).toFixed(1) : '0.0';
+                const mah = (x.mA * rptLifetimeH).toFixed(1);
+                return [
+                    { canvas: [{ type: 'rect', x: 0, y: 2, w: 7, h: 7, r: 1, color: x.color }],
+                      margin: [1, 1, 0, 1] },
+                    { text: x.label, fontSize: 5.5, color: '#333', margin: [2, 2, 0, 1] },
+                    { text: `${pct}%`, fontSize: 5.5, bold: true, color: x.color,
+                      alignment: 'right', margin: [0, 2, 2, 1] },
+                    { text: `${mah}`, fontSize: 5.5, color: '#666',
+                      alignment: 'right', margin: [0, 2, 2, 1] },
+                ];
+            });
+            return {
+                stack: [
+                    { text: title, fontSize: 7.5, bold: true, color: '#444',
+                      alignment: 'center', margin: [0, 0, 0, 5] },
+                    img
+                        ? { image: img, width: 120, height: 120, alignment: 'center' }
+                        : { text: 'No data', fontSize: 7, color: '#bbb',
+                            alignment: 'center', margin: [0, 40, 0, 40] },
+                    nonZero.length > 0 ? {
+                        table: { widths: [10, '*', 22, 28], body: legendRows },
+                        layout: {
+                            hLineWidth: (i, node) =>
+                                (i === 0 || i === node.table.body.length) ? 0.4 : 0,
+                            vLineWidth: () => 0,
+                            hLineColor: () => '#c9e8ed',
+                        },
+                        margin: [0, 6, 0, 0],
+                    } : { text: '' },
+                ],
+            };
+        }
+
+        // ── Render the 3 disk images ──────────────────────────────────────
+        const groupItems = GROUPS.map(g => ({
+            label: g.label, mA: getGroupTotal(g, result), color: g.color,
+        }));
+        const geoGroup   = GROUPS.find(g => g.key === 'geolocation');
+        const geoItems   = geoGroup.children.map(c => ({
+            label: c.label, mA: getChildValue(c, result), color: c.color,
+        }));
+        const netGroup   = GROUPS.find(g => g.key === 'network');
+        const netItems   = netGroup.children.map(c => ({
+            label: c.label, mA: getChildValue(c, result), color: c.color,
+        }));
+
+        const diskOverallImg = renderDisk(groupItems);
+        const diskGeoImg     = renderDisk(geoItems);
+        const diskNetImg     = renderDisk(netItems);
 
         // ── Helpers ──────────────────────────────────────────────────────
         const th = (text, opts = {}) => ({ text, bold: true, fillColor: TEAL, color: '#fff',
@@ -3246,10 +3331,10 @@
         // ── KPI cards ─────────────────────────────────────────────────────
         const kpiCard = (val, unit, label, accent = TEAL) => ({
             stack: [
-                { text: String(val), fontSize: 17, bold: true, color: accent, alignment: 'center', margin: [0, 5, 0, 0] },
+                { text: String(val), fontSize: 15, bold: true, color: accent, alignment: 'center', margin: [0, 6, 0, 0] },
                 { text: unit,  fontSize: 6,   color: '#999', alignment: 'center' },
-                { canvas: [{ type: 'line', x1: 10, y1: 3, x2: 90, y2: 3, lineWidth: 0.5, lineColor: '#c9e8ed' }], margin: [0,2,0,2] },
-                { text: label, fontSize: 6.5, bold: true, color: '#555', alignment: 'center', margin: [0, 0, 0, 5] },
+                { canvas: [{ type: 'line', x1: 6, y1: 3, x2: 68, y2: 3, lineWidth: 0.5, lineColor: '#c9e8ed' }], margin: [0,2,0,2] },
+                { text: label, fontSize: 6, bold: true, color: '#555', alignment: 'center', margin: [0, 0, 0, 6] },
             ],
         });
 
@@ -3288,8 +3373,9 @@
                 const cMa  = getChildValue(c, result);
                 const cMah = toMah(cMa);
                 const cPct = totalUa > 0 ? (cMa * 1000 / totalUa * 100).toFixed(1) : '0.0';
-                const pa   = g.key === 'geolocation' ? geoPerAction(c.key, cMa, input)
-                           : g.key === 'network'     ? networkPerAction(c.key, cMa, input)
+                const pa   = g.key === 'geolocation'     ? geoPerAction(c.key, cMa, input)
+                           : g.key === 'network'         ? networkPerAction(c.key, cMa, input)
+                           : g.key === 'recovery_beacon' ? (cMa > 0 ? { text: RECOVERY_BEACON_MAH.toFixed(6) } : null)
                            : null;
                 breakdownBody.push([
                     { canvas: [{ type: 'rect', x: 2, y: 3, w: 3, h: 5, r: 1, color: c.color || g.color }],
@@ -3313,7 +3399,7 @@
         // geoConfigBlock removed — geoloc config is now part of the unified geoBlock below
         const geoConfigBlock = [];
 
-        // ── CPU statistics block ──────────────────────────────────────────
+        // ── General Consumptions block ────────────────────────────────────
         const cpuStatsBlock = [];
         {
             const lifeDays  = result.battery_life_days;
@@ -3322,6 +3408,14 @@
             const monPerDay = monPeriod > 0 ? 86400 / monPeriod : 0;
             const cpuMah    = ((result.group_currents_ma.cpu || 0) * lifetimeH).toFixed(1);
 
+            const inp = window.lastInput;
+            const rbeaconMotionPeriod = inp?.recovery_beacon?.motion_period_s || 0;
+            const rbeaconStaticPeriod = inp?.recovery_beacon?.static_period_s || 0;
+            const mFrac = inp?.recovery_beacon?.motion_frac ?? 0.5;
+            const rbeaconMotionPerDay = rbeaconMotionPeriod > 0 ? mFrac * 86400 / rbeaconMotionPeriod : 0;
+            const rbeaconStaticPerDay = rbeaconStaticPeriod > 0 ? (1 - mFrac) * 86400 / rbeaconStaticPeriod : 0;
+            const beaconMah = ((result.group_currents_ma.recovery_beacon || 0) * lifetimeH).toFixed(3);
+
             const monRow = monPeriod <= 0
                 ? [ td('System monitoring wakeup'), td('Disabled', { color: '#aaa' }),
                     td('—', { alignment: 'right' }), td('—', { alignment: 'right' }) ]
@@ -3329,23 +3423,40 @@
                     td(fmt(monPerDay) + ' / day', { alignment: 'right' }),
                     td(fmtI(Math.round(monPerDay * lifeDays)) + ' total', { alignment: 'right' }) ];
 
+            const beaconMotionRow = rbeaconMotionPeriod <= 0
+                ? [ td('Recovery beacon in motion'), td('Disabled', { color: '#aaa' }),
+                    td('—', { alignment: 'right' }), td('—', { alignment: 'right' }) ]
+                : [ td('Recovery beacon in motion'), td(`${rbeaconMotionPeriod} s`),
+                    td(fmt(rbeaconMotionPerDay) + ' / day', { alignment: 'right' }),
+                    td(fmtI(Math.round(rbeaconMotionPerDay * lifeDays)) + ' total', { alignment: 'right' }) ];
+
+            const beaconStaticRow = rbeaconStaticPeriod <= 0
+                ? [ td('Recovery beacon in static'), td('Disabled', { color: '#aaa' }),
+                    td('—', { alignment: 'right' }), td('—', { alignment: 'right' }) ]
+                : [ td('Recovery beacon in static'), td(`${rbeaconStaticPeriod} s`),
+                    td(fmt(rbeaconStaticPerDay) + ' / day', { alignment: 'right' }),
+                    td(fmtI(Math.round(rbeaconStaticPerDay * lifeDays)) + ' total', { alignment: 'right' }) ];
+
             cpuStatsBlock.push(
-                sectionHeader('General CPU Statistics'),
+                sectionHeader('General Consumptions'),
                 { table: {
                     headerRows: 1,
                     widths: ['*', 'auto', 'auto', 'auto'],
                     body: [
                         ['Event', 'Period', 'Rate', 'Lifetime total'].map(th),
                         monRow,
+                        beaconMotionRow,
+                        beaconStaticRow,
                     ]
                   }, layout: 'lightHorizontalLines', margin: [0, 0, 0, 4] },
-                { text: `CPU & System total: ${cpuMah} mAh`, fontSize: 8, color: '#008293', bold: true, margin: [0, 0, 0, 8] }
+                { text: `CPU & System total: ${cpuMah} mAh   |   Recovery beacon total: ${beaconMah} mAh`,
+                  fontSize: 8, color: '#555', bold: false, margin: [0, 0, 0, 8] }
             );
         }
 
-        // ── Uplinks by Network Technology block ──────────────────────────
+        // (Uplinks by Network Technology section removed from report)
         const uplinksStatsBlock = [];
-        {
+        if (false) {
             const ul = window.lastUplinksData;
             if (ul) {
                 const fmtR = n => n.toLocaleString(undefined, { maximumFractionDigits: 2 });
@@ -3712,25 +3823,30 @@
                 sectionHeader('Configuration'),
                 {
                     table: {
-                        widths: [70, '*', 70, '*'],
+                        widths: [80, '*', 80, '*'],
                         body: [
                             [
-                                { text: 'Product',          bold: true, fontSize: 7, color: '#555', fillColor: '#f4fbfc', margin: [6,4,4,4] },
-                                { text: productName,        fontSize: 7,             fillColor: '#f4fbfc', margin: [4,4,6,4] },
-                                { text: 'Battery capacity', bold: true, fontSize: 7, color: '#555', fillColor: '#f4fbfc', margin: [6,4,4,4] },
-                                { text: `${input.battery_capacity_mah} mAh`, fontSize: 7, fillColor: '#f4fbfc', margin: [4,4,6,4] },
+                                { text: 'Product',           bold: true, fontSize: 7, color: '#555', fillColor: '#f4fbfc', margin: [6,4,4,4] },
+                                { text: productName,         fontSize: 7,             fillColor: '#f4fbfc', margin: [4,4,6,4] },
+                                { text: 'Motion / Static',   bold: true, fontSize: 7, color: '#555', fillColor: '#f4fbfc', margin: [6,4,4,4] },
+                                { text: `${mPct}% motion  /  ${sPct}% static`, fontSize: 7, fillColor: '#f4fbfc', margin: [4,4,6,4] },
                             ],
                             [
-                                { text: 'Self-discharge',   bold: true, fontSize: 7, color: '#555', margin: [6,4,4,4] },
-                                { text: `${input.annual_discharge_pct} %/yr`, fontSize: 7, margin: [4,4,6,4] },
-                                { text: 'Motion / Static',  bold: true, fontSize: 7, color: '#555', margin: [6,4,4,4] },
-                                { text: `${mPct}% motion  /  ${sPct}% static`, fontSize: 7, margin: [4,4,6,4] },
+                                { text: 'Battery capacity',  bold: true, fontSize: 7, color: '#555', margin: [6,4,4,4] },
+                                { text: `${input.battery_capacity_mah} mAh`, fontSize: 7, margin: [4,4,6,4] },
+                                { text: 'Self-discharge',    bold: true, fontSize: 7, color: '#555', margin: [6,4,4,4] },
+                                { text: `${input.annual_discharge_pct} %/yr  (on full capacity)`, fontSize: 7, margin: [4,4,6,4] },
                             ],
                             [
-                                { text: 'LoRa SF',          bold: true, fontSize: 7, color: '#555', fillColor: '#f4fbfc', margin: [6,4,4,4] },
-                                { text: `SF${input.sf}`,    fontSize: 7,             fillColor: '#f4fbfc', margin: [4,4,6,4] },
-                                { text: 'TX power',         bold: true, fontSize: 7, color: '#555', fillColor: '#f4fbfc', margin: [6,4,4,4] },
-                                { text: `${input.tx_power} dBm`, fontSize: 7, fillColor: '#f4fbfc', margin: [4,4,6,4] },
+                                { text: 'Usable capacity',   bold: true, fontSize: 7, color: '#555', fillColor: '#f4fbfc', margin: [6,4,4,4] },
+                                { text: `${input.usable_pct ?? 100}%  →  ${Math.round(result.battery.capacity_mah)} mAh`, fontSize: 7, bold: true, color: TEAL, fillColor: '#f4fbfc', margin: [4,4,6,4] },
+                                { text: 'Annual loss',        bold: true, fontSize: 7, color: '#555', fillColor: '#f4fbfc', margin: [6,4,4,4] },
+                                { text: `${result.battery.annual_discharge_mah} mAh/yr`, fontSize: 7, fillColor: '#f4fbfc', margin: [4,4,6,4] },
+                            ],
+                            [
+                                { text: 'DR distribution',   bold: true, fontSize: 7, color: '#555', margin: [6,4,4,4] },
+                                { text: result.lora.dr_sf_str, fontSize: 7, margin: [4,4,6,4], colSpan: 3 },
+                                {}, {},
                             ],
                         ],
                     },
@@ -3744,75 +3860,46 @@
                 // ── Key Results ───────────────────────────────────────────
                 sectionHeader('Key Results'),
                 kpiRow([
-                    kpiCard(result.battery_life_days.toLocaleString(), 'days',    'Battery Life'),
-                    kpiCard((result.battery_life_days/365).toFixed(2), 'years',   'Battery Life'),
-                    kpiCard(Math.round(result.battery.capacity_mah),   'mAh',     'Battery Capacity'),
-                    kpiCard(result.battery.annual_discharge_mah,       'mAh/yr',  'Self-Discharge'),
+                    kpiCard(result.battery_life_days.toLocaleString(),     'days',   'Battery Life'),
+                    kpiCard((result.battery_life_days/365).toFixed(2),     'years',  'Battery Life'),
+                    kpiCard(Math.round(result.battery.total_capacity_mah), 'mAh',    'Battery Capacity'),
+                    kpiCard(`${Math.round(result.battery.capacity_mah)} (${result.battery.usable_pct}%)`, 'mAh', 'Usable Capacity'),
+                    kpiCard(result.battery.annual_discharge_mah,           'mAh/yr', 'Self-Discharge'),
                     kpiCard((result.total_current_ma * 1000).toFixed(1), 'µA',    'Avg. Current'),
                 ]),
 
-                // ── Power Breakdown + Chart ───────────────────────────────
+                // ── Power Breakdown table (full width) ───────────────────
                 sectionHeader('Power Consumption Breakdown'),
                 {
-                    columns: [
-                        // Left: breakdown table
-                        {
-                            width: '*',
-                            stack: [
-                                { table: { headerRows: 1,
-                                           widths: [8, '*', 'auto', 'auto', 'auto'],
-                                           body: breakdownBody },
-                                  layout: {
-                                      hLineWidth: (i, node) => (i === 0 || i === 1 || i === node.table.body.length) ? 0.7 : 0.3,
-                                      vLineWidth: () => 0,
-                                      hLineColor: (i, node) => (i === 0 || i === 1 || i === node.table.body.length) ? '#b0d8e0' : '#ddf0f3',
-                                  },
-                                },
-                            ],
-                        },
-                        { width: 12, text: '' },
-                        // Right: chart + legend
-                        {
-                            width: 170,
-                            stack: [
-                                { text: 'Distribution', fontSize: 7.5, bold: true, color: '#555',
-                                  alignment: 'center', margin: [0, 0, 0, 6] },
-                                { image: pdfChartImg, width: 155, height: 155, alignment: 'center' },
-                                // Legend rows
-                                {
-                                    table: {
-                                        widths: [10, '*', 32],
-                                        body: GROUPS.map(g => {
-                                            const gMa  = getGroupTotal(g, result);
-                                            const gPct = totalUa > 0 ? (gMa * 1000 / totalUa * 100).toFixed(1) : '0.0';
-                                            return [
-                                                { canvas: [{ type: 'rect', x: 0, y: 2, w: 8, h: 8, r: 2, color: g.color }],
-                                                  margin: [2, 1, 0, 1] },
-                                                { text: g.label, fontSize: 6.5, margin: [2, 2, 0, 1] },
-                                                { text: `${gPct}%`, fontSize: 6.5, bold: true,
-                                                  color: g.color, alignment: 'right', margin: [0, 2, 2, 1] },
-                                            ];
-                                        }),
-                                    },
-                                    layout: {
-                                        hLineWidth: (i, node) => (i === 0 || i === node.table.body.length) ? 0.5 : 0,
-                                        vLineWidth: () => 0,
-                                        hLineColor: () => '#c9e8ed',
-                                    },
-                                    margin: [0, 8, 0, 0],
-                                },
-                            ],
-                        },
-                    ],
-                    columnGap: 0,
-                    margin: [0, 0, 0, 4],
+                    table: {
+                        headerRows: 1,
+                        widths: [8, '*', 'auto', 'auto', 'auto'],
+                        body: breakdownBody,
+                    },
+                    layout: {
+                        hLineWidth: (i, node) => (i === 0 || i === 1 || i === node.table.body.length) ? 0.7 : 0.3,
+                        vLineWidth: () => 0,
+                        hLineColor: (i, node) => (i === 0 || i === 1 || i === node.table.body.length) ? '#b0d8e0' : '#ddf0f3',
+                    },
+                    margin: [0, 0, 0, 14],
                 },
 
-                // ── CPU Statistics ────────────────────────────────────────
-                ...cpuStatsBlock,
+                // ── Power Distribution — 3 disk charts ───────────────────
+                sectionHeader('Power Distribution'),
+                {
+                    columns: [
+                        diskPanel('Overall Distribution', diskOverallImg, groupItems, result.total_current_ma),
+                        { width: 10, text: '' },
+                        diskPanel('Geolocation Detail', diskGeoImg, geoItems, getGroupTotal(geoGroup, result)),
+                        { width: 10, text: '' },
+                        diskPanel('Network Detail', diskNetImg, netItems, getGroupTotal(netGroup, result)),
+                    ],
+                    columnGap: 0,
+                    margin: [0, 6, 0, 4],
+                },
 
-                // ── Uplinks by Network Technology ─────────────────────────
-                ...uplinksStatsBlock,
+                // ── General Consumptions ──────────────────────────────────
+                ...cpuStatsBlock,
 
                 // ── Geolocation Profiles ──────────────────────────────────
                 ...geoStatsBlock,
