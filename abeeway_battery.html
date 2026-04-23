@@ -2096,6 +2096,24 @@
         const lteProbePerDay          = lteProbeRaw * lteFactor;
         const lteTotalPerDay          = lteStatusPerDay + lteProbePerDay;
 
+        // ── Motion notifications (core_notif_enable, 4th byte bits 0 & 1) ──
+        // core_notif_enable is a hex byte-array string e.g. "{3B,00,07,03,00,00}"
+        const coreNotifBytes = (cfg.core_notif_enable || '')
+            .replace(/[{}\s]/g, '').split(',')
+            .map(s => parseInt(s, 16));
+        const notifByte3       = cfgLoaded && coreNotifBytes.length >= 4 && !isNaN(coreNotifBytes[3])
+            ? coreNotifBytes[3] : null;
+        const motionStartEnabled = notifByte3 !== null ? !!(notifByte3 & 0x01) : false;
+        const motionEndEnabled   = notifByte3 !== null ? !!(notifByte3 & 0x02) : false;
+
+        const tripsPerDay           = Math.max(0, parseFloat(document.getElementById('trips_per_day').value) || 0);
+        const loraMotionStartPerDay = motionStartEnabled ? tripsPerDay * loraFactor : 0;
+        const loraMotionEndPerDay   = motionEndEnabled   ? tripsPerDay * loraFactor : 0;
+        const lteMotionStartPerDay  = motionStartEnabled ? tripsPerDay * lteFactor  : 0;
+        const lteMotionEndPerDay    = motionEndEnabled   ? tripsPerDay * lteFactor  : 0;
+        const loraNotifPerDay       = loraMotionStartPerDay + loraMotionEndPerDay;
+        const lteNotifPerDay        = lteMotionStartPerDay  + lteMotionEndPerDay;
+
         // ── Formatting helpers ────────────────────────────────────────────
         const fmtR = n => n.toLocaleString(undefined, { maximumFractionDigits: 2 });
         const fmtI = n => Math.round(n).toLocaleString();
@@ -2168,6 +2186,10 @@
         const lteProbeState = !cfgLoaded ? 'no-config'
             : lteProbeActive ? 'active'
             : 'disabled';
+        const motionStartState = !cfgLoaded ? 'no-config'
+            : motionStartEnabled ? 'active' : 'disabled';
+        const motionEndState = !cfgLoaded ? 'no-config'
+            : motionEndEnabled ? 'active' : 'disabled';
 
         // ── Config hint strings ───────────────────────────────────────────
         const statusHint   = statusPeriod > 0 ? `core_status_period = ${statusPeriod} s` : 'period = 0 (disabled)';
@@ -2182,6 +2204,12 @@
         const lteProbeHint = !cfgLoaded ? '' : lteProbeActive
             ? `cell_probe_period = ${cellProbePeriod} s  ·  max = ${cellProbeMax}`
             : (cfg.cell_max_probe_attempts === '0' ? 'cell_max_probe_attempts = 0' : 'not set in config');
+        const motionStartHint = !cfgLoaded ? ''
+            : motionStartEnabled ? `core_notif_enable byte3 bit 0  ·  ${tripsPerDay} trips/day`
+            : 'core_notif_enable byte3 bit 0 = 0 (disabled)';
+        const motionEndHint = !cfgLoaded ? ''
+            : motionEndEnabled ? `core_notif_enable byte3 bit 1  ·  ${tripsPerDay} trips/day`
+            : 'core_notif_enable byte3 bit 1 = 0 (disabled)';
 
         // ── Position uplinks from geolocation profiles ────────────────────────
         // Each scenario = one combined uplink payload (e.g. "WiFi(failure) + GNSS")
@@ -2194,9 +2222,9 @@
         const posLoraPerDay  = posTotalPerDay * loraFactor;
         const posLtePerDay   = posTotalPerDay * lteFactor;
 
-        // Display totals include position uplinks; TX-strategy variables are unchanged
-        const loraDisplayTotal = loraTotalPerDay + posLoraPerDay;
-        const lteDisplayTotal  = lteTotalPerDay  + posLtePerDay;
+        // Display totals include position uplinks and motion notifications
+        const loraDisplayTotal = loraTotalPerDay + posLoraPerDay + loraNotifPerDay;
+        const lteDisplayTotal  = lteTotalPerDay  + posLtePerDay  + lteNotifPerDay;
 
         // ── Status type labels ────────────────────────────────────────────
         const statusTypes = ['Status 0', 'Status 1'];
@@ -2269,6 +2297,17 @@
             tx2TotalPerDay  += tx2PosLoraPerDay;
             rx1Tx2          += tx2PosLoraPerDay;
             rx2Tx2          += tx2PosLoraPerDay;
+        }
+
+        // TX2 motion notifications — same dual-TX logic as status/heartbeat
+        let tx2MotionStartPerDay = 0, tx2MotionEndPerDay = 0;
+        if (hasTxStrat) {
+            const dS = txDualStatic ? 1 : 0, dM = txDualMotion ? 1 : 0;
+            tx2MotionStartPerDay = loraMotionStartPerDay * (staticFrac * dS + motionFrac * dM);
+            tx2MotionEndPerDay   = loraMotionEndPerDay   * (staticFrac * dS + motionFrac * dM);
+            tx2TotalPerDay      += tx2MotionStartPerDay + tx2MotionEndPerDay;
+            rx1Tx2              += tx2MotionStartPerDay + tx2MotionEndPerDay;
+            rx2Tx2              += tx2MotionStartPerDay + tx2MotionEndPerDay;
         }
 
         // Short note describing dual TX mode for TX2 sub-rows
@@ -2482,6 +2521,9 @@
                             ${mkSubHeader('LoRa Probing &nbsp;<small style="font-weight:normal;">(state-weighted)</small>')}
                             ${mkRow('Probe — static', loraProbeStaticHint, loraProbeStaticPerDay, loraProbeStaticState, 0, 'lc')}
                             ${mkRow('Probe — motion', loraProbeMotionHint, loraProbeMotionPerDay, loraProbeMotionState, 0, 'lc')}
+                            ${mkSubHeader('Motion Notifications &nbsp;<small style="font-weight:normal;">(1 per trip start / end)</small>')}
+                            ${mkTxPair('Motion Start', motionStartHint, loraMotionStartPerDay, tx2MotionStartPerDay, motionStartState, tx2MixedNote, 0, 5)}
+                            ${mkTxPair('Motion End',   motionEndHint,   loraMotionEndPerDay,   tx2MotionEndPerDay,   motionEndState,   tx2MixedNote, 0, 11)}
                             ${loraPosSection}
                             ${hasTxStrat
                                 ? (() => { const tg = `txpg${_txpIdx++}`; return `
@@ -2555,6 +2597,9 @@
                             ${lteStatusSubRows}
                             ${mkSubHeader('LTE Probing &nbsp;<small style="font-weight:normal;">(independent of device state)</small>')}
                             ${mkRow('Probe', lteProbeHint, lteProbePerDay, lteProbeState)}
+                            ${mkSubHeader('Motion Notifications &nbsp;<small style="font-weight:normal;">(1 per trip start / end)</small>')}
+                            ${mkRow('Motion Start', motionStartHint, lteMotionStartPerDay, motionStartState, 0, 5)}
+                            ${mkRow('Motion End',   motionEndHint,   lteMotionEndPerDay,   motionEndState,   0, 11)}
                             ${ltePosSection}
                             ${mkTotalRow('LTE uplinks total', lteDisplayTotal, '#1e5f7a')}
                         </tbody>
@@ -2611,6 +2656,13 @@
             // Position uplinks (scenario-based, with dual-TX split)
             posScenarios, posTotalPerDay, posTotalMotionPerDay, posTotalStaticPerDay,
             posLoraPerDay, posLtePerDay, tx2PosLoraPerDay,
+            // Motion notifications
+            motionStartEnabled, motionEndEnabled,
+            loraMotionStartPerDay, loraMotionEndPerDay,
+            lteMotionStartPerDay, lteMotionEndPerDay,
+            tx2MotionStartPerDay, tx2MotionEndPerDay,
+            motionStartState, motionEndState,
+            motionStartHint, motionEndHint,
             loraDisplayTotal, lteDisplayTotal,
         };
     }
@@ -3851,8 +3903,9 @@
                             ],
                             [
                                 { text: 'DR distribution',   bold: true, fontSize: 7, color: '#555', margin: [6,4,4,4] },
-                                { text: result.lora.dr_sf_str, fontSize: 7, margin: [4,4,6,4], colSpan: 3 },
-                                {}, {},
+                                { text: result.lora.dr_sf_str, fontSize: 7, margin: [4,4,6,4] },
+                                { text: 'LoRa TX Power',     bold: true, fontSize: 7, color: '#555', margin: [6,4,4,4] },
+                                { text: `${input.tx_power} dBm`, fontSize: 7, margin: [4,4,6,4] },
                             ],
                         ],
                     },
