@@ -1670,6 +1670,9 @@
         const staticPeriod = parseFloat(cfg.geoloc_static_period) || 3600;  // [s]
         const _mPct0 = parseFloat(document.getElementById('motion_pct').value);
         const motionFrac   = (isNaN(_mPct0) ? 50 : _mPct0) / 100;
+        const tripsPerDay  = Math.max(0, parseFloat(document.getElementById('trips_per_day').value) || 0);
+        const nbStart      = Math.max(1, parseFloat(cfg.geoloc_motion_nb_start) || 1);
+        const nbStop       = Math.max(1, parseFloat(cfg.geoloc_motion_nb_stop)  || 1);
 
         // Overall trigger rate (used for summary display and fallback)
         const triggersPerDay = motionFrac * (86400 / motionPeriod)
@@ -1677,15 +1680,18 @@
 
         /**
          * Per-profile trigger rate based on geoloc_profileX_triggers bitmap.
-         * Bit 4 (0x10) = geo_trigger_in_motion
-         * Bit 5 (0x20) = geo_trigger_in_static
-         * If a bit is 0, that state contributes 0 triggers for this profile.
+         * Bit 2 (0x04) = trigger on motion start  → tripsPerDay × geoloc_motion_nb_start
+         * Bit 3 (0x08) = trigger on motion end     → tripsPerDay × geoloc_motion_nb_stop
+         * Bit 4 (0x10) = trigger while in motion   → motionFrac × 86400 / motionPeriod
+         * Bit 5 (0x20) = trigger while in static   → staticFrac × 86400 / staticPeriod
          */
         function profileTriggersPerDay(profile) {
-            const bm     = profile.triggers;
-            const motion = (bm & 0x10) ? motionFrac * (86400 / motionPeriod) : 0;
-            const statc  = (bm & 0x20) ? (1 - motionFrac) * (86400 / staticPeriod) : 0;
-            return { motion, statc, total: motion + statc };
+            const bm       = profile.triggers;
+            const motion   = (bm & 0x10) ? motionFrac * (86400 / motionPeriod) : 0;
+            const statc    = (bm & 0x20) ? (1 - motionFrac) * (86400 / staticPeriod) : 0;
+            const motStart = (bm & 0x04) ? tripsPerDay * nbStart : 0;
+            const motStop  = (bm & 0x08) ? tripsPerDay * nbStop  : 0;
+            return { motion, statc, motStart, motStop, total: motion + statc + motStart + motStop };
         }
 
         // Accumulated effective nof_msg_per_day per techno type
@@ -1704,9 +1710,13 @@
             const probs       = computeSlotProbabilities(profile);
             const perProfileTriggers = profileTriggersPerDay(profile);
             const profileStats = {
-                profileIndex:    profile.profileIndex,
-                triggers:        profile.triggers,
-                triggersPerDay:  perProfileTriggers.total,
+                profileIndex:       profile.profileIndex,
+                triggers:           profile.triggers,
+                triggersPerDay:     perProfileTriggers.total,
+                trigMotStart:       perProfileTriggers.motStart,
+                trigMotStop:        perProfileTriggers.motStop,
+                trigMotion:         perProfileTriggers.motion,
+                trigStatic:         perProfileTriggers.statc,
                 slots: [],
             };
 
@@ -1746,8 +1756,8 @@
                                            + t0AbsProb   * t0Static
                                            + mxAbsProb   * maxTime;
 
-                        const motionRunsPerDay = perProfileTriggers.motion * runProb;
-                        const staticRunsPerDay = perProfileTriggers.statc  * runProb;
+                        const motionRunsPerDay = (perProfileTriggers.motion + perProfileTriggers.motStart) * runProb;
+                        const staticRunsPerDay = (perProfileTriggers.statc  + perProfileTriggers.motStop)  * runProb;
 
                         const slotCurrentMa = HW.gnss_active_current_ma *
                             (motionRunsPerDay * avgDurMotion + staticRunsPerDay * avgDurStatic) / 86400;
@@ -1771,8 +1781,8 @@
                         const avgDurMotion = successProb * lpMaxTime + failureProb * lpt0Motion;
                         const avgDurStatic = successProb * lpMaxTime + failureProb * lpt0Static;
 
-                        const motionRunsPerDay = perProfileTriggers.motion * runProb;
-                        const staticRunsPerDay = perProfileTriggers.statc  * runProb;
+                        const motionRunsPerDay = (perProfileTriggers.motion + perProfileTriggers.motStart) * runProb;
+                        const staticRunsPerDay = (perProfileTriggers.statc  + perProfileTriggers.motStop)  * runProb;
 
                         const slotCurrentMa = HW.lpgps_active_current_ma *
                             (motionRunsPerDay * avgDurMotion + staticRunsPerDay * avgDurStatic) / 86400;
@@ -1866,15 +1876,25 @@
                 const sp  = parseFloat(cfg.geoloc_static_period) || 3600;
                 const _mfRaw = parseFloat(document.getElementById('motion_pct').value);
                 const mf  = isNaN(_mfRaw) ? 50 : _mfRaw;
-                const inMotion = !!(ps.triggers & 0x10);
-                const inStatic = !!(ps.triggers & 0x20);
+                const nbSt = Math.max(1, parseFloat(cfg.geoloc_motion_nb_start) || 1);
+                const nbSp = Math.max(1, parseFloat(cfg.geoloc_motion_nb_stop)  || 1);
+                const inMotion   = !!(ps.triggers & 0x10);
+                const inStatic   = !!(ps.triggers & 0x20);
+                const onMotStart = !!(ps.triggers & 0x04);
+                const onMotEnd   = !!(ps.triggers & 0x08);
                 const motionPart = inMotion
                     ? `Motion: 1 fix / ${mp} s`
                     : `<span style="color:#e05">Motion: disabled (bit 4 = 0)</span>`;
                 const staticPart = inStatic
                     ? `Static: 1 fix / ${sp} s`
                     : `<span style="color:#e05">Static: disabled (bit 5 = 0)</span>`;
-                return `${motionPart} &nbsp;·&nbsp; ${staticPart} &nbsp;·&nbsp; Motion ${mf} % / Static ${100 - mf} %`;
+                const startPart  = onMotStart
+                    ? `<span style="color:#2a7a2a">On start: ${nbSt} fix/trip</span>`
+                    : `<span style="color:#aaa">On start: off (bit 2 = 0)</span>`;
+                const stopPart   = onMotEnd
+                    ? `<span style="color:#2a7a2a">On end: ${nbSp} fix/trip</span>`
+                    : `<span style="color:#aaa">On end: off (bit 3 = 0)</span>`;
+                return `${motionPart} &nbsp;·&nbsp; ${staticPart} &nbsp;·&nbsp; ${startPart} &nbsp;·&nbsp; ${stopPart} &nbsp;·&nbsp; Motion ${mf} % / Static ${100 - mf} %`;
             })();
 
             return `
@@ -2173,8 +2193,8 @@
             return `<tr>
                 <th>Message type</th>
                 <th>Period / Config</th>
-                <th class="right">/ day</th>
-                <th class="right">Lifetime</th>
+                <th class="right">UL/day</th>
+                <th class="right">UL/Lifetime</th>
             </tr>`;
         }
 
@@ -2725,6 +2745,9 @@
         const staticPeriod = parseFloat(cfg.geoloc_static_period) || 3600;
         const _mPctP       = parseFloat(document.getElementById('motion_pct').value);
         const motionFrac   = (isNaN(_mPctP) ? 50 : _mPctP) / 100;
+        const tripsPerDay  = Math.max(0, parseFloat(document.getElementById('trips_per_day').value) || 0);
+        const nbStart      = Math.max(1, parseFloat(cfg.geoloc_motion_nb_start) || 1);
+        const nbStop       = Math.max(1, parseFloat(cfg.geoloc_motion_nb_stop)  || 1);
 
         // Payload label for a given technology and outcome.
         // Every technology always produces a label (success or failure) so that the full
@@ -2744,10 +2767,12 @@
         const scenarioMap = {};  // label → { m: motionPerDay, s: staticPerDay }
 
         for (const profile of window.geolocProfiles) {
-            const bm     = profile.triggers;
-            const motion = (bm & 0x10) ? motionFrac       * (86400 / motionPeriod) : 0;
-            const statc  = (bm & 0x20) ? (1 - motionFrac) * (86400 / staticPeriod) : 0;
-            const tpd    = motion + statc;
+            const bm       = profile.triggers;
+            const motion   = (bm & 0x10) ? motionFrac       * (86400 / motionPeriod) : 0;
+            const statc    = (bm & 0x20) ? (1 - motionFrac) * (86400 / staticPeriod) : 0;
+            const motStart = (bm & 0x04) ? tripsPerDay * nbStart : 0;
+            const motStop  = (bm & 0x08) ? tripsPerDay * nbStop  : 0;
+            const tpd      = motion + statc + motStart + motStop;
             if (tpd <= 0) continue;
 
             // Resolve failure probabilities for each slot upfront
@@ -2770,13 +2795,14 @@
             function nextAfterFailure(idx) { return idx + 1; }
 
             // Recursive DFS over the slot chain; labelParts accumulates payload pieces.
+            // motStart triggers are treated as motion-like; motStop as static-like for dual-TX split.
             function enumerate(idx, labelParts, prob) {
                 if (idx >= n || prob < 1e-9) {
                     const label = labelParts.join(' + ');
                     if (label) {
                         if (!scenarioMap[label]) scenarioMap[label] = { m: 0, s: 0 };
-                        scenarioMap[label].m += prob * motion;
-                        scenarioMap[label].s += prob * statc;
+                        scenarioMap[label].m += prob * (motion + motStart);
+                        scenarioMap[label].s += prob * (statc  + motStop);
                     }
                     return;
                 }
@@ -3799,11 +3825,17 @@
             geoData.stats.forEach(ps => {
                 const inMotion   = !!(ps.triggers & 0x10);
                 const inStatic   = !!(ps.triggers & 0x20);
+                const onMotStart = !!(ps.triggers & 0x04);
+                const onMotEnd   = !!(ps.triggers & 0x08);
                 const mp         = parseFloat(cfg.geoloc_motion_period) || 300;
                 const sp         = parseFloat(cfg.geoloc_static_period) || 3600;
+                const nbSt       = Math.max(1, parseFloat(cfg.geoloc_motion_nb_start) || 1);
+                const nbSp       = Math.max(1, parseFloat(cfg.geoloc_motion_nb_stop)  || 1);
                 const motStr     = inMotion ? `Motion: 1 fix / ${mp} s` : 'Motion: disabled';
                 const stStr      = inStatic ? `Static: 1 fix / ${sp} s` : 'Static: disabled';
-                const geoHdrText = `Profile ${ps.profileIndex}  ·  ${motStr}  ·  ${stStr}  ·  ${fmt(ps.triggersPerDay)} triggers/day`;
+                const startStr   = onMotStart ? `On start: ${nbSt} fix/trip` : 'On start: off';
+                const stopStr    = onMotEnd   ? `On end: ${nbSp} fix/trip`   : 'On end: off';
+                const geoHdrText = `Profile ${ps.profileIndex}  ·  ${motStr}  ·  ${stStr}  ·  ${startStr}  ·  ${stopStr}  ·  ${fmt(ps.triggersPerDay)} triggers/day`;
 
                 const slotRows = ps.slots.map(s => {
                     const mode = s.isFirst ? 'First slot' : (s.alwaysDone ? 'Always done' : 'Conditional');
