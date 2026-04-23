@@ -2083,30 +2083,35 @@
         const lteProbeActive  = !isNaN(cellProbeMax) && cellProbeMax !== 0 && cellProbePeriod > 0;
         const lteProbeRaw     = lteProbeActive ? 86400 / cellProbePeriod : 0;
 
+        // ── Parse core_notif_enable hex byte array e.g. "{3B,00,07,03,00,00}" ──
+        const coreNotifBytes = (cfg.core_notif_enable || '')
+            .replace(/[{}\s]/g, '').split(',')
+            .map(s => parseInt(s, 16));
+        const notifByte0 = cfgLoaded && coreNotifBytes.length >= 1 && !isNaN(coreNotifBytes[0])
+            ? coreNotifBytes[0] : null;
+        const notifByte3 = cfgLoaded && coreNotifBytes.length >= 4 && !isNaN(coreNotifBytes[3])
+            ? coreNotifBytes[3] : null;
+        // Byte 0 bit 0 → status messages; byte 3 bit 0 → motion start; byte 3 bit 1 → motion end
+        const statusNotifEnabled = notifByte0 !== null ? !!(notifByte0 & 0x01) : true;
+        const motionStartEnabled = notifByte3 !== null ? !!(notifByte3 & 0x01) : false;
+        const motionEndEnabled   = notifByte3 !== null ? !!(notifByte3 & 0x02) : false;
+
+        const tripsPerDay = Math.max(0, parseFloat(document.getElementById('trips_per_day').value) || 0);
+
         // ── Effective rates scaled by network usage & motion/static split ──
-        const loraStatusPerDay        = statusPerDayRaw * loraFactor;
+        const loraStatusPerDay        = statusNotifEnabled ? statusPerDayRaw * loraFactor : 0;
         const loraStatusPerTypePerDay = numStatusTypes > 0 ? loraStatusPerDay / numStatusTypes : 0;
         const loraHbPerDay            = hbPerDayRaw * loraFactor;
         const loraProbeStaticPerDay   = loraProbeStaticRaw * staticFrac * loraFactor;
         const loraProbeMotionPerDay   = loraProbeMotionRaw * motionFrac * loraFactor;
         const loraTotalPerDay         = loraStatusPerDay + loraHbPerDay + loraProbeStaticPerDay + loraProbeMotionPerDay;
 
-        const lteStatusPerDay         = statusPerDayRaw * lteFactor;
+        const lteStatusPerDay         = statusNotifEnabled ? statusPerDayRaw * lteFactor : 0;
         const lteStatusPerTypePerDay  = numStatusTypes > 0 ? lteStatusPerDay / numStatusTypes : 0;
         const lteProbePerDay          = lteProbeRaw * lteFactor;
         const lteTotalPerDay          = lteStatusPerDay + lteProbePerDay;
 
-        // ── Motion notifications (core_notif_enable, 4th byte bits 0 & 1) ──
-        // core_notif_enable is a hex byte-array string e.g. "{3B,00,07,03,00,00}"
-        const coreNotifBytes = (cfg.core_notif_enable || '')
-            .replace(/[{}\s]/g, '').split(',')
-            .map(s => parseInt(s, 16));
-        const notifByte3       = cfgLoaded && coreNotifBytes.length >= 4 && !isNaN(coreNotifBytes[3])
-            ? coreNotifBytes[3] : null;
-        const motionStartEnabled = notifByte3 !== null ? !!(notifByte3 & 0x01) : false;
-        const motionEndEnabled   = notifByte3 !== null ? !!(notifByte3 & 0x02) : false;
-
-        const tripsPerDay           = Math.max(0, parseFloat(document.getElementById('trips_per_day').value) || 0);
+        // ── Motion notification rates ─────────────────────────────────────
         const loraMotionStartPerDay = motionStartEnabled ? tripsPerDay * loraFactor : 0;
         const loraMotionEndPerDay   = motionEndEnabled   ? tripsPerDay * loraFactor : 0;
         const lteMotionStartPerDay  = motionStartEnabled ? tripsPerDay * lteFactor  : 0;
@@ -2174,7 +2179,9 @@
         }
 
         // ── Row states ────────────────────────────────────────────────────
-        const statusState    = statusPeriod <= 0 ? 'disabled' : 'active';
+        const statusState = statusPeriod <= 0 ? 'disabled'
+            : (!cfgLoaded || statusNotifEnabled) ? 'active'
+            : 'disabled';
         const hbState        = hbPeriod    <= 0 ? 'disabled' : 'active';
 
         const loraProbeStaticState = !cfgLoaded ? 'no-config'
@@ -2192,7 +2199,9 @@
             : motionEndEnabled ? 'active' : 'disabled';
 
         // ── Config hint strings ───────────────────────────────────────────
-        const statusHint   = statusPeriod > 0 ? `core_status_period = ${statusPeriod} s` : 'period = 0 (disabled)';
+        const statusHint   = statusPeriod <= 0 ? 'period = 0 (disabled)'
+            : cfgLoaded && !statusNotifEnabled ? `core_status_period = ${statusPeriod} s  ·  core_notif_enable byte0 bit 0 = 0`
+            : `core_status_period = ${statusPeriod} s`;
         const hbHint       = hbPeriod    > 0 ? `lorawan_heartbeat_period = ${hbPeriod} s` : 'period = 0 (disabled)';
 
         const loraProbeStaticHint = !cfgLoaded ? '' : loraProbeStaticActive
