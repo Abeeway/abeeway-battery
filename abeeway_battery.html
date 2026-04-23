@@ -2954,6 +2954,21 @@
                     return (isNaN(_mp) ? 50 : _mp) / 100;
                 })(),
             },
+            lora_probe: (function() {
+                const cfg        = window.deviceConfig || {};
+                const _mp        = parseFloat(document.getElementById('motion_pct').value);
+                const mFrac      = (isNaN(_mp) ? 50 : _mp) / 100;
+                const loraFactor = (parseFloat(document.getElementById('net_usage_lora_pct').value) || 0) / 100;
+                const maxStatic  = parseFloat(cfg.lorawan_probe_max_attempts_static);
+                const maxMotion  = parseFloat(cfg.lorawan_probe_max_attempts_motion);
+                const perStatic  = parseFloat(cfg.lorawan_probe_period_static) || 0;
+                const perMotion  = parseFloat(cfg.lorawan_probe_period_motion) || 0;
+                const activeS    = !isNaN(maxStatic) && maxStatic !== 0 && perStatic > 0;
+                const activeM    = !isNaN(maxMotion) && maxMotion !== 0 && perMotion > 0;
+                const rateS      = activeS ? (1 - mFrac) * 86400 / perStatic : 0;
+                const rateM      = activeM ? mFrac       * 86400 / perMotion : 0;
+                return { nof_per_day: (rateS + rateM) * loraFactor };
+            })(),
         };
 
         // Inject TX2 factor + DR distribution from lorawan_s1_tx_strategy

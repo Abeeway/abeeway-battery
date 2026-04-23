@@ -217,6 +217,7 @@ const WIFI_ADDITIONAL_BSSID_PAYL_LEN  = 7;
 const BLE_MIN_PAYL_LEN                = GEOLOC_HDR;       // 8 (7 bytes/beacon, no tech-specific minimum)
 const BLE_ADDITIONAL_BSSID_PAYL_LEN   = 7;
 const RECOVERY_BEACON_MAH             = 0.00036;  // energy per single beacon transmission [mAh]
+const LORA_PROBE_ENERGY_MAH           = 0.006;    // energy per single LoRa link-check (probe) [mAh]
 
 const SCANCOLL_MIN_PAYL_LEN                  = 8;
 const SCANCOLL_ADDITIONAL_MACADDR_PAYL_LEN   = 7;
@@ -564,6 +565,10 @@ function calculate_battery_life_time(input) {
     );
     const fix_current = HW.quiescent_current_ma + battery_leakage_current;
 
+    // LoRa link-check (probe): fixed energy per event, no TX2
+    const lora_probe_nof  = input.lora_probe?.nof_per_day || 0;
+    const lora_probe_current = LORA_PROBE_ENERGY_MAH * lora_probe_nof / 24;
+
     // Group totals
     // Geolocation: HW scan/fix current only. LoRa TX for all message types lives in lora_total.
     const cpu_total      = cpu_idle_current + monitoring_current + fix_current;
@@ -571,7 +576,8 @@ function calculate_battery_life_time(input) {
     const cellular_total = cellular_current;
     const lora_total     = custom_msg_lora_current + heartbeat_lora_current + status_lora_current
                          + scan_collection_lora_current + custom_ble_usage_current + scan_collection_current
-                         + gps_lora_current + lpgps_lora_current + agps_lora_current + wifi_lora_current + ble_lora_current;
+                         + gps_lora_current + lpgps_lora_current + agps_lora_current + wifi_lora_current + ble_lora_current
+                         + lora_probe_current;
     const beacon_total   = recovery_beacon_current;
 
     const total_current = cpu_total + geoloc_total + cellular_total + lora_total + beacon_total;
@@ -600,6 +606,7 @@ function calculate_battery_life_time(input) {
         lora_custom_msg:      custom_msg_lora_current,
         lora_scan_collection: scan_collection_lora_current + scan_collection_current,
         lora_custom_ble:      custom_ble_usage_current,
+        lora_probe:           lora_probe_current,
         recovery_beacon_motion: recovery_beacon_motion_current,
         recovery_beacon_static: recovery_beacon_static_current,
     };
@@ -650,6 +657,7 @@ if (typeof module !== 'undefined') {
         LORAWAN_DR_TO_SF,
         LORA_TX_CURRENT_MA,
         CELLULAR_ENERGY_PER_UPLINK_MAH,
+        LORA_PROBE_ENERGY_MAH,
         HW,
     };
 }
