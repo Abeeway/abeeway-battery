@@ -21,12 +21,12 @@ let HW = {
 
     // LoRa (SX1262)
     lora_rx_current_ma:         8,     // RX window current (I_RX)
-    lora_rx_window_ms:          90,    // duration of each RX window (T_RX)
+    lora_rx_window_ms:          300,    // duration of each RX window (T_RX)
 
     // GNSS / GPS
     gnss_active_current_ma:     30,    // GNSS chipset active current (standalone fix)
     lpgps_active_current_ma:    24,    // LP-GPS chipset active current
-    gps_active_current_ma:      22,    // kept for AGPS (assisted mode)
+    gps_active_current_ma:      24,    // kept for AGPS (assisted mode)
     gps_standby_current_ma:     0.05,
 
     // WiFi
@@ -38,8 +38,8 @@ let HW = {
     ble_scan_duration_s:        3,     // fallback default; profile-based path uses per-scan durations
 
     // Monitoring wakeup
-    monitoring_current_ma:      5,
-    monitoring_window_ms:       10,
+    monitoring_current_ma:      2,
+    monitoring_window_ms:       30,
 
     // BLE operations (custom usage)
     ble_fast_adv_current_ma:    10,
@@ -92,7 +92,7 @@ const SPREADING_FACTORS = [7, 8, 9, 10, 11, 12];
 
 // TX power → TX current [mA] per product, measured calibration points (14–22 dBm)
 const LORA_TX_CURRENT_MA = {
-    compact:       { 14: 32, 15:  44, 16:  67, 17:  78, 18:  87, 19: 100, 20: 123, 21: 124, 22: 123 },
+    compact:       { 14: 32, 15:  44, 16:  67, 17:  78, 18:  87, 19: 100, 20: 123, 21: 124, 22: 124 },
     combo_tracker: { 14: 27, 15:  34, 16:  59, 17:  66, 18:  73, 19:  82, 20:  92, 21:  94, 22:  99 },
 };
 // industrial / micro / smart_badge → same RF front-end as compact
@@ -239,6 +239,7 @@ const SCANCOLL_ADDITIONAL_BEACONID_PAYL_LEN  = 4;
 //                MHDR(1) + DevAddr(4) + FCtrl(1) + FCnt(2) + FPort(1) + MIC(4))
 //   T_payload    = n_payload × T_sym
 //   T_packet     = T_preamble + T_payload
+//   T_radio_startup = Radio startup time [ms]
 //
 // Energy per uplink [mJ]:
 //   E_TX  = T_packet [ms] × V [V] × I_TX(dBm, product) [mA]  / 1000
@@ -248,12 +249,13 @@ const SCANCOLL_ADDITIONAL_BEACONID_PAYL_LEN  = 4;
 // Average current [mA] = (E_TX + E_RX) / V × N_msg_per_day / 86400
 function calculate_lora_current(sf, tx_power, payl_len, nof_msg_per_day, product) {
     const T_sym      = (2 ** sf) / 125;                   // symbol period [ms]
+    const T_radio_startup = 80;                           // Radio startup time [ms]
     const T_preamble = 12.25 * T_sym;                     // preamble time [ms]
     const DE         = sf >= 11 ? 1 : 0;
     const PL         = payl_len + 13;                     // total PHY bytes incl. LoRaWAN overhead
     const n_payload  = 8 + Math.max(
         Math.ceil((8 * PL - 4 * sf + 44) / (4 * (sf - 2 * DE))) * 5, 0);
-    const T_packet   = T_preamble + n_payload * T_sym;    // time on air [ms]
+    const T_packet   = T_radio_startup + T_preamble + n_payload * T_sym;    // time on air [ms]
 
     const E_TX = T_packet * HW.supply_voltage * getTxCurrentMa(tx_power, product) / 1000;
     const E_RX = 2 * HW.lora_rx_window_ms * HW.supply_voltage * HW.lora_rx_current_ma / 1000;
