@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta charset="UTF-8" />
-    <title>Battery Life Estimator</title>
+    <title>Battery Lifetime Estimator</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.72/pdfmake.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.72/vfs_fonts.js"></script>
@@ -421,7 +421,7 @@
 </head>
 <body>
 
-    <h1>Battery Life Estimator</h1>
+    <h1>Battery Lifetime Estimator</h1>
 
     <!-- ════════════════════════════════════════════
          SECTION 1 — General Configuration
@@ -434,10 +434,7 @@
                 <legend>Product</legend>
                 <label for="product">Product type:</label><br />
                 <select id="product" onchange="onProductChange()">
-                    <option value="industrial">Industrial Tracker</option>
-                    <option value="compact">Compact Tracker</option>
-                    <option value="micro">Microtracker</option>
-                    <option value="smart_badge" selected>Smart Badge</option>
+                    <option value="compact" selected>Compact Tracker</option>
                     <option value="combo_tracker">Combo Tracker</option>
                 </select>
             </fieldset>
@@ -2516,7 +2513,12 @@
                   '<td class="right" style="font-weight:bold; color:#005f6b;">' + fmtR(totalDisplay) + '</td>' +
                   '<td class="right" style="font-weight:bold; color:#005f6b;">' + fmtI(totalDisplay * lifeDays) + '</td>' +
                 '</tr>';
-            return subHdr + scenarioRows + subTotal;
+            const loraHint = netName === 'LoRa'
+                ? '<tr><td colspan="4" style="padding:2px 10px 5px 26px; color:#888; font-size:.73rem; font-style:italic;">' +
+                  '&#9432;&nbsp;All uplinks are treated as a single LoRa transmit (no multiframe)' +
+                  '</td></tr>'
+                : '';
+            return subHdr + loraHint + scenarioRows + subTotal;
         }
         const loraPosSection = _mkPosSection(loraFactor, posLoraPerDay, tx2PosLoraPerDay, loraUsagePct, 'LoRa', hasTxStrat);
         const ltePosSection  = _mkPosSection(lteFactor,  posLtePerDay,  0,                lteUsagePct,  'LTE',  false);
@@ -3904,7 +3906,7 @@
             // Running page header
             header: (currentPage, pageCount) => ({
                 columns: [
-                    { text: `Abeeway  ·  Battery Life Estimator`, fontSize: 6.5, color: '#aaa', margin: [36, 18, 0, 0] },
+                    { text: `Abeeway  ·  Battery Lifetime Estimator`, fontSize: 6.5, color: '#aaa', margin: [36, 18, 0, 0] },
                     { text: `Page ${currentPage} of ${pageCount}`, fontSize: 6.5, color: '#aaa', alignment: 'right', margin: [0, 18, 36, 0] },
                 ],
             }),
@@ -3921,7 +3923,7 @@
                 {
                     table: { widths: ['*', 'auto'], body: [[
                         { stack: [
-                            { text: 'Battery Life Estimation Report', fontSize: 17, bold: true, color: '#fff', margin: [10, 10, 0, 2] },
+                            { text: 'Battery Lifetime Estimation Report', fontSize: 17, bold: true, color: '#fff', margin: [10, 10, 0, 2] },
                             { text: `${productName}  ·  ${configFile}`, fontSize: 7.5, color: '#c0eaf0', margin: [10, 0, 0, 10] },
                           ], fillColor: TEAL },
                         { stack: [
