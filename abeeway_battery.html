@@ -2329,8 +2329,8 @@
         let tx2MotionStartPerDay = 0, tx2MotionEndPerDay = 0;
         if (hasTxStrat) {
             const dS = txDualStatic ? 1 : 0, dM = txDualMotion ? 1 : 0;
-            tx2MotionStartPerDay = loraMotionStartPerDay * (staticFrac * dS + motionFrac * dM);
-            tx2MotionEndPerDay   = loraMotionEndPerDay   * (staticFrac * dS + motionFrac * dM);
+            tx2MotionStartPerDay = loraMotionStartPerDay * dM;  // motion start: entering motion mode
+            tx2MotionEndPerDay   = loraMotionEndPerDay   * dS;  // motion end: entering static mode
             tx2TotalPerDay      += tx2MotionStartPerDay + tx2MotionEndPerDay;
             rx1Tx2              += tx2MotionStartPerDay + tx2MotionEndPerDay;
             rx2Tx2              += tx2MotionStartPerDay + tx2MotionEndPerDay;
@@ -2971,6 +2971,24 @@
                 const rateM      = activeM ? mFrac       * 86400 / perMotion : 0;
                 return { nof_per_day: (rateS + rateM) * loraFactor };
             })(),
+            motion_notifications: (function() {
+                const cfg        = window.deviceConfig || {};
+                const tripsPerDay = Math.max(0, parseFloat(document.getElementById('trips_per_day').value) || 0);
+                const coreNotifBytes = (cfg.core_notif_enable || '')
+                    .replace(/[{}\s]/g, '').split(',').map(s => parseInt(s, 16));
+                const notifByte3 = Object.keys(cfg).length > 0 && coreNotifBytes.length >= 4 && !isNaN(coreNotifBytes[3])
+                    ? coreNotifBytes[3] : null;
+                const startEnabled = notifByte3 !== null ? !!(notifByte3 & 0x01) : false;
+                const endEnabled   = notifByte3 !== null ? !!(notifByte3 & 0x02) : false;
+                // Raw trips/day (no lora_factor) — the JS multiplies by lora_factor, consistent with other message types.
+                // tx2_factor_start/end are injected by the TX strategy block below (dM / dS).
+                return {
+                    start_nof_per_day: startEnabled ? tripsPerDay : 0,
+                    end_nof_per_day:   endEnabled   ? tripsPerDay : 0,
+                    tx2_factor_start:  0,
+                    tx2_factor_end:    0,
+                };
+            })(),
         };
 
         // Inject TX2 factor + DR distribution from lorawan_s1_tx_strategy
@@ -2985,6 +3003,9 @@
             const _mp = parseFloat(document.getElementById('motion_pct').value);
             const mFrac = (isNaN(_mp) ? 50 : _mp) / 100;
             input.lora_tx2_factor = (1 - mFrac) * dS + mFrac * dM;
+            // Motion notification TX2: start → entering motion (dM), end → entering static (dS)
+            input.motion_notifications.tx2_factor_start = dM;
+            input.motion_notifications.tx2_factor_end   = dS;
             const active2 = [];
             for (let i = 0; i < 8; i++) if (byte2 & (1 << i)) active2.push(i);
             if (active2.length > 0) {

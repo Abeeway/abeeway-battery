@@ -205,6 +205,8 @@ const CELLULAR_ENERGY_PER_UPLINK_MAH = {
 
 // LoRa payload lengths [bytes] — protocol constants, not measurements
 const HEARTBEAT_PAYL_LEN              = 11;
+const MOTION_START_PAYL_LEN           = 5;
+const MOTION_END_PAYL_LEN             = 11;
 const STATUS_PAYL_BY_TYPE             = [42, 35, 48, 54]; // Status 0/1/2/3
 // Position uplinks: 8-byte uplink header (4B message + 4B position) shared across all geoloc techs
 const GEOLOC_HDR                      = 8;
@@ -571,6 +573,26 @@ function calculate_battery_life_time(input) {
     const lora_probe_nof  = input.lora_probe?.nof_per_day || 0;
     const lora_probe_current = LORA_PROBE_ENERGY_MAH * lora_probe_nof / 24;
 
+    // Motion notifications — TX2 factors are mode-specific: start→dM (entering motion), end→dS (entering static)
+    const motStartNof = input.motion_notifications?.start_nof_per_day || 0;
+    const motEndNof   = input.motion_notifications?.end_nof_per_day   || 0;
+    const motStartTx2 = input.motion_notifications?.tx2_factor_start  ?? 0;
+    const motEndTx2   = input.motion_notifications?.tx2_factor_end    ?? 0;
+    const loraCalcTx2Start = motStartTx2 > 0
+        ? (pl, n) => (tx2_dr_dist
+            ? calculate_lora_current_dr_weighted(input.tx_power, pl, n * motStartTx2, tx2_dr_dist, region, product)
+            : calculate_lora_current(input.sf ?? 10, input.tx_power, pl, n * motStartTx2, product))
+        : () => 0;
+    const loraCalcTx2End = motEndTx2 > 0
+        ? (pl, n) => (tx2_dr_dist
+            ? calculate_lora_current_dr_weighted(input.tx_power, pl, n * motEndTx2, tx2_dr_dist, region, product)
+            : calculate_lora_current(input.sf ?? 10, input.tx_power, pl, n * motEndTx2, product))
+        : () => 0;
+    const motion_start_lora_current =
+        (loraCalc(MOTION_START_PAYL_LEN, motStartNof) + loraCalcTx2Start(MOTION_START_PAYL_LEN, motStartNof)) * lora_factor;
+    const motion_end_lora_current =
+        (loraCalc(MOTION_END_PAYL_LEN, motEndNof) + loraCalcTx2End(MOTION_END_PAYL_LEN, motEndNof)) * lora_factor;
+
     // Group totals
     // Geolocation: HW scan/fix current only. LoRa TX for all message types lives in lora_total.
     const cpu_total      = cpu_idle_current + monitoring_current + fix_current;
@@ -579,7 +601,8 @@ function calculate_battery_life_time(input) {
     const lora_total     = custom_msg_lora_current + heartbeat_lora_current + status_lora_current
                          + scan_collection_lora_current + custom_ble_usage_current + scan_collection_current
                          + gps_lora_current + lpgps_lora_current + agps_lora_current + wifi_lora_current + ble_lora_current
-                         + lora_probe_current;
+                         + lora_probe_current
+                         + motion_start_lora_current + motion_end_lora_current;
     const beacon_total   = recovery_beacon_current;
 
     const total_current = cpu_total + geoloc_total + cellular_total + lora_total + beacon_total;
@@ -609,6 +632,8 @@ function calculate_battery_life_time(input) {
         lora_scan_collection: scan_collection_lora_current + scan_collection_current,
         lora_custom_ble:      custom_ble_usage_current,
         lora_probe:           lora_probe_current,
+        lora_motion_start:    motion_start_lora_current,
+        lora_motion_end:      motion_end_lora_current,
         recovery_beacon_motion: recovery_beacon_motion_current,
         recovery_beacon_static: recovery_beacon_static_current,
     };
