@@ -49,7 +49,7 @@ GitHub Pages must be configured in the repository settings to use `GitHub Action
 After deployment, the site is expected at:
 
 ```text
-https://norbertherbert.github.io/abeeway-battery/
+https://abeeway.github.io/abeeway-battery/
 ```
 
 ## Notes
