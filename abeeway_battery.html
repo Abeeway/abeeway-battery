@@ -328,7 +328,7 @@
             padding:5px 9px; text-align:left;
         }
 
-        /* ── TX Strategy (lorawan_s1_tx_strategy) ──────────────────── */
+        /* ── TX Strategy ────────────────────────────────────────────── */
         .dr-grid {
             display: flex;
             flex-wrap: wrap;
@@ -416,6 +416,44 @@
             margin-bottom: 4px;
             text-transform: uppercase;
             letter-spacing: .03em;
+        }
+        #advanced_stats_details {
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            background: #fff;
+            overflow: hidden;
+            margin-bottom: 14px;
+        }
+        #advanced_stats_details > summary {
+            list-style: none;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            color: #008293;
+            font-size: .9rem;
+            font-weight: bold;
+            padding: 10px 12px 8px;
+            margin: 0;
+            cursor: pointer;
+            user-select: none;
+        }
+        #advanced_stats_details > summary::-webkit-details-marker { display: none; }
+        #advanced_stats_details > summary:hover { background: #f0f8f9; }
+        #advanced_stats_details[open] > summary { border-bottom: 1px solid #eee; }
+        #advanced_stats_details > summary .adv-arrow {
+            display: inline-block;
+            width: .9rem;
+            font-size: .65rem;
+            color: #008293;
+            transition: transform .18s ease;
+            transform: rotate(0deg);
+        }
+        #advanced_stats_details[open] > summary .adv-arrow {
+            transform: rotate(90deg);
+        }
+        #advanced_stats_details .adv-body {
+            padding: 12px;
+            background: #fff;
         }
     </style>
 </head>
@@ -620,7 +658,7 @@
         <legend>Network</legend>
 
         <!-- ── Network Selection & Usage Split ── -->
-        <fieldset>
+        <fieldset id="network_selection_fieldset">
             <legend>Network Selection</legend>
             <div style="display:flex; flex-flow:row wrap; gap:8px; align-items:stretch;">
 
@@ -724,28 +762,28 @@
 
             <!-- ── TX Strategy sub-section ── -->
             <fieldset style="margin-top:8px;">
-                <legend>TX Strategy (lorawan_s1_tx_strategy)</legend>
+                <legend>TX Strategy</legend>
                 <div class="flexcontainer">
 
-                    <!-- Byte 0 — Control Flags (read-only from config) -->
+                    <!-- Control Flags (read-only from config) -->
                     <fieldset class="flexitem">
-                        <legend>Byte 0 — Control Flags</legend>
+                        <legend>Control Flags</legend>
                         <div style="margin-bottom:6px;">
                             <label>
                                 <input type="checkbox" id="tx_strat_adr" disabled>
-                                <strong>Bit 0</strong> — ADR <small style="color:#666;">(static mode)</small>
+                                ADR <small style="color:#666;">(static mode)</small>
                             </label>
                         </div>
                         <div style="margin-bottom:6px;">
                             <label>
                                 <input type="checkbox" id="tx_strat_dual_static" disabled>
-                                <strong>Bit 1</strong> — Dual TX <small style="color:#666;">(static mode)</small>
+                                Dual TX <small style="color:#666;">(static mode)</small>
                             </label>
                         </div>
                         <div style="margin-bottom:6px;">
                             <label>
                                 <input type="checkbox" id="tx_strat_dual_motion" disabled>
-                                <strong>Bit 2</strong> — Dual TX <small style="color:#666;">(motion mode)</small>
+                                Dual TX <small style="color:#666;">(motion mode)</small>
                             </label>
                         </div>
                         <div class="tx-strat-raw-row">
@@ -753,9 +791,9 @@
                         </div>
                     </fieldset>
 
-                    <!-- Byte 1 — TX1 Data Rate -->
+                    <!-- TX1 Data Rate -->
                     <fieldset class="flexitem" id="tx1_dr_fs">
-                        <legend>Byte 1 — TX1 Data Rate</legend>
+                        <legend>TX1 Data Rate</legend>
 
                         <!-- ADR sub-section: shown only when ADR bit is set -->
                         <div id="tx1_adr_section" style="display:none;">
@@ -788,9 +826,9 @@
                         </div>
                     </fieldset>
 
-                    <!-- Byte 2 — TX2 Data Rate (read-only from config) -->
+                    <!-- TX2 Data Rate (read-only from config) -->
                     <fieldset class="flexitem" id="tx2_dr_fs">
-                        <legend>Byte 2 — TX2 Data Rate</legend>
+                        <legend>TX2 Data Rate</legend>
                         <div id="tx2_dr_body">
                             <small style="color:#666; display:block; margin-bottom:4px;">
                                 Active DRs (from config):
@@ -817,7 +855,7 @@
     <!-- ════════════════════════════════════════════
          SECTION 6 — Recovery Beacon
     ═════════════════════════════════════════════ -->
-    <fieldset>
+    <fieldset style="display:none;">
         <legend>Recovery Beacon</legend>
         <div class="flexcontainer">
 
@@ -893,21 +931,33 @@
                 </fieldset>
             </div>
 
-            <!-- ── General Consumptions ──────────────────────────────────── -->
-            <div id="cpu_stats_section" style="display:none;">
-                <fieldset>
-                    <legend>General Consumptions</legend>
-                    <div id="cpu_stats_content"></div>
-                </fieldset>
-            </div>
+            <!-- ── Advanced Statistics (collapsed by default) ───────────── -->
+            <details id="advanced_stats_details" style="display:none;">
+                <summary>
+                    <span class="adv-arrow">&#9654;</span>
+                    Advanced Statistics
+                    <small style="font-weight:normal; color:#888; font-size:.75rem;">(click to expand)</small>
+                </summary>
 
-            <!-- ── Uplinks by Network Technology ─────────────────────────── -->
-            <div id="uplinks_stats_section" style="display:none; margin-bottom:14px;">
-                <fieldset>
-                    <legend>Uplinks by Network Technology</legend>
-                    <div id="uplinks_stats_content"></div>
-                </fieldset>
-            </div>
+                <div class="adv-body">
+                    <!-- ── General Consumptions ──────────────────────── -->
+                    <div id="cpu_stats_section">
+                        <fieldset>
+                            <legend>General Consumptions</legend>
+                            <div id="cpu_stats_content"></div>
+                        </fieldset>
+                    </div>
+
+                    <!-- ── Uplinks by Network Technology ─────────────── -->
+                    <div id="uplinks_stats_section" style="margin-bottom:4px;">
+                        <fieldset>
+                            <legend>Uplinks by Network Technology</legend>
+                            <div id="uplinks_stats_content"></div>
+                        </fieldset>
+                    </div>
+                </div>
+
+            </details>
 
             <div class="diskanalyzer-layout">
                 <div class="charts-row">
@@ -1511,9 +1561,24 @@
      * Cellular lock/unlock based on product selection
      ***********************************************************************/
     function onProductChange() {
-        const isCombo = document.getElementById('product').value === 'combo_tracker';
-        const inputs  = document.getElementById('cellular_inputs');
-        const notice  = document.getElementById('cellular_locked_notice');
+        const isCombo   = document.getElementById('product').value === 'combo_tracker';
+        const isCompact = document.getElementById('product').value === 'compact';
+        const inputs    = document.getElementById('cellular_inputs');
+        const notice    = document.getElementById('cellular_locked_notice');
+        const netSelFS  = document.getElementById('network_selection_fieldset');
+        const cellFS    = document.getElementById('cellular_fieldset');
+
+        // For the Compact Tracker, LoRa is the only network — hide both network sections
+        // and force LoRa-only mode internally. For all other products, show them.
+        if (isCompact) {
+            netSelFS.style.display = 'none';
+            cellFS.style.display   = 'none';
+            document.getElementById('net_selection').value = '0';
+            onNetSelectionChange(); // applies lora=100%, cellular=0%
+        } else {
+            netSelFS.style.display = '';
+            cellFS.style.display   = '';
+        }
 
         // disable/enable every input and select inside the cellular section
         inputs.querySelectorAll('input, select').forEach(el => {
@@ -1931,7 +1996,7 @@
     function renderCpuStats(result, input) {
         const section = document.getElementById('cpu_stats_section');
         const content = document.getElementById('cpu_stats_content');
-        section.style.display = '';
+        document.getElementById('advanced_stats_details').style.display = '';
 
         const lifeDays  = result.battery_life_days;
         const lifetimeH = lifeDays * 24;
@@ -2012,7 +2077,7 @@
     function renderUplinksStats(result, input) {
         const section = document.getElementById('uplinks_stats_section');
         const content = document.getElementById('uplinks_stats_content');
-        section.style.display = '';
+        document.getElementById('advanced_stats_details').style.display = '';
 
         const cfg       = window.deviceConfig || {};
         const cfgLoaded = Object.keys(cfg).length > 0;
