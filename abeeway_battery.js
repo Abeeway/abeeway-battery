@@ -532,13 +532,12 @@ function calculate_battery_life_time(input) {
         input.monitoring.period_s, input.monitoring.current_ma, input.monitoring.window_ms
     );
 
-    // Total scheduled uplinks per day (all message types, before network split)
+    // Total scheduled uplinks per day for cellular (excludes heartbeat, which is LoRa-only)
     const ble_msgs_per_day = input.ble.ble1
         ? (input.ble.ble1.nof_msg_per_day || 0) + (input.ble.ble2?.nof_msg_per_day || 0)
         : (input.ble.nof_msg_per_day || 0);
     const total_uplinks_per_day =
         (input.custom_msg.nof_msg_per_day || 0) +
-        (input.heartbeat.nof_msg_per_day  || 0) +
         (input.status_msg.nof_msg_per_day || 0) +
         (input.gps.nof_msg_per_day        || 0) +
         (input.lpgps?.nof_msg_per_day     || 0) +
