@@ -97,16 +97,32 @@ const LORA_TX_CURRENT_MA = {
 };
 // industrial / micro / smart_badge → same RF front-end as compact
 
-// DR → SF mapping per LoRaWAN region (uplink only, 125 kHz BW unless noted)
-const LORAWAN_DR_TO_SF = {
-    EU868: { 0: 12, 1: 11, 2: 10, 3: 9, 4: 8, 5: 7 },
-    US915: { 0: 10, 1:  9, 2:  8, 3: 7 },
-    AU915: { 0: 12, 1: 11, 2: 10, 3: 9, 4: 8, 5: 7 },
-    AS923: { 0: 12, 1: 11, 2: 10, 3: 9, 4: 8, 5: 7 },
-    KR920: { 0: 12, 1: 11, 2: 10, 3: 9, 4: 8, 5: 7 },
-    IN865: { 0: 12, 1: 11, 2: 10, 3: 9, 4: 8, 5: 7 },
-    RU864: { 0: 12, 1: 11, 2: 10, 3: 9, 4: 8, 5: 7 },
+// Uplink DR → modulation per LoRaWAN region (LoRaWAN Regional Parameters RP002).
+//   { sf, bw }  : LoRa, spreading factor + bandwidth [kHz]
+//   { fsk }     : GFSK, bit rate [kbps]
+// DRs missing from a region are RFU / LR-FHSS (not modelled).
+const _LORA_SF12_SF7_125 = {
+    0: { sf: 12, bw: 125 }, 1: { sf: 11, bw: 125 }, 2: { sf: 10, bw: 125 },
+    3: { sf:  9, bw: 125 }, 4: { sf:  8, bw: 125 }, 5: { sf:  7, bw: 125 },
 };
+const LORAWAN_DR_TABLE = {
+    EU868: { ..._LORA_SF12_SF7_125, 6: { sf: 7, bw: 250 }, 7: { fsk: 50 } },
+    US915: { 0: { sf: 10, bw: 125 }, 1: { sf: 9, bw: 125 }, 2: { sf: 8, bw: 125 },
+             3: { sf:  7, bw: 125 }, 4: { sf: 8, bw: 500 } },
+    AU915: { ..._LORA_SF12_SF7_125, 6: { sf: 8, bw: 500 } },
+    AS923: { ..._LORA_SF12_SF7_125, 6: { sf: 7, bw: 250 }, 7: { fsk: 50 } },
+    KR920: { ..._LORA_SF12_SF7_125 },
+    IN865: { ..._LORA_SF12_SF7_125, 7: { fsk: 50 } },
+    RU864: { ..._LORA_SF12_SF7_125, 6: { sf: 7, bw: 250 }, 7: { fsk: 50 } },
+};
+
+// Human-readable DR label, e.g. "DR0(SF12)", "DR6(SF7/250kHz)", "DR7(FSK)"
+function loraDrLabel(dr, region) {
+    const m = (LORAWAN_DR_TABLE[region] ?? LORAWAN_DR_TABLE.EU868)[dr];
+    if (!m) return `DR${dr}(n/a)`;
+    if (m.fsk) return `DR${dr}(FSK)`;
+    return m.bw === 125 ? `DR${dr}(SF${m.sf})` : `DR${dr}(SF${m.sf}/${m.bw}kHz)`;
+}
 
 const BATTERY_TYPES = {
     primary:      {
@@ -221,6 +237,339 @@ const BLE_ADDITIONAL_BSSID_PAYL_LEN   = 7;
 const RECOVERY_BEACON_MAH             = 0.00036;  // energy per single beacon transmission [mAh]
 const LORA_PROBE_ENERGY_MAH           = 0.006;    // energy per single LoRa link-check (probe) [mAh]
 
+
+/* ─────────────────────────────────────────────────────────────────
+ * DEVICE CONFIG PARAMETER IDs
+ * Production config files identify parameters by ID ("P0100=300")
+ * instead of by name ("core_monitoring_period = 300").
+ * ID format: 'P' + group (2 hex digits) + index in group (2 hex digits).
+ * The parser converts IDs to names with this table, so the rest of the
+ * tool only works with parameter names.
+ * ──────────────────────────────────────────────────────────────── */
+const CONFIG_PARAM_ID_TO_NAME = {
+    P0100: "core_monitoring_period",
+    P0101: "core_status_period",
+    P0102: "core_notif_enable",
+    P0103: "core_temp_high_threshold",
+    P0104: "core_temp_low_threshold",
+    P0105: "core_temp_hysteresis",
+    P0106: "core_button1_map",
+    P0107: "core_button2_map",
+    P0108: "core_buttons_timing",
+    P0109: "core_led0_map",
+    P010a: "core_led1_map",
+    P010b: "core_buzzer_map",
+    P010c: "core_almanac_validity",
+    P010d: "core_almanac_outdated_ratio",
+    P010f: "core_db_type_mask",
+
+    P0200: "geoloc_motion_period",
+    P0201: "geoloc_static_period",
+    P0202: "geoloc_sos_period",
+    P0203: "geoloc_motion_nb_start",
+    P0204: "geoloc_motion_nb_stop",
+    P0205: "geoloc_start_stop_period",
+    P0206: "geoloc_gnss_hold_on_mode",
+    P0207: "geoloc_gnss_hold_on_timeout",
+    P0208: "geoloc_profile0_triggers",
+    P0209: "geoloc_profile1_triggers",
+    P020a: "geoloc_profile2_triggers",
+    P020b: "geoloc_gbe_profile0_techno",
+    P020c: "geoloc_gbe_profile1_techno",
+    P020d: "geoloc_gbe_profile2_techno",
+
+    P0300: "gnss_constellation",
+    P0301: "gnss_max_time",
+    P0302: "gnss_t0_timeout_static",
+    P0303: "gnss_ehpe_static",
+    P0304: "gnss_convergence_static",
+    P0305: "gnss_t0_timeout_motion",
+    P0306: "gnss_ehpe_motion",
+    P0307: "gnss_convergence_motion",
+    P0308: "gnss_standby_time",
+    P0309: "gnss_agnss_max_time",
+    P030a: "gnss_t1_timeout",
+
+    P0400: "lr_constellation",
+    P0401: "lr_scan_mode",
+    P0402: "lr_nb_scan",
+    P0403: "lr_inter_scan_time",
+    P0404: "lr_wifi_report_nb_bssid",
+    P0405: "lr_wifi_min_nb_bssid",
+    P0406: "lr_wifi_min_rssi",
+    P0407: "lr_wifi_bssid_mac_type",
+    P0408: "lr_rbeacon_type",
+    P0409: "lr_rbeacon_sos_period",
+    P040a: "lr_rbeacon_motion_period",
+    P040b: "lr_rbeacon_static_period",
+    P040c: "lr_rbeacon_ranging_timeout",
+
+    P0500: "ble_scan1_duration",
+    P0501: "ble_scan1_window",
+    P0502: "ble_scan1_interval",
+    P0503: "ble_scan1_type",
+    P0504: "ble_scan1_min_rssi",
+    P0505: "ble_scan1_min_nb_beacons",
+    P0506: "ble_scan1_filter1_mask",
+    P0507: "ble_scan1_filter1_value",
+    P0508: "ble_scan1_filter1_offset",
+    P0509: "ble_scan1_filter2_mask",
+    P050a: "ble_scan1_filter2_value",
+    P050b: "ble_scan1_filter2_offset",
+    P050c: "ble_scan1_nb_beacons",
+    P050d: "ble_scan1_report_type",
+    P050e: "ble_scan1_report_id_ofs",
+
+    P0600: "ble_scan2_duration",
+    P0601: "ble_scan2_window",
+    P0602: "ble_scan2_interval",
+    P0603: "ble_scan2_type",
+    P0604: "ble_scan2_min_rssi",
+    P0605: "ble_scan2_min_nb_beacons",
+    P0606: "ble_scan2_filter1_mask",
+    P0607: "ble_scan2_filter1_value",
+    P0608: "ble_scan2_filter1_offset",
+    P0609: "ble_scan2_filter2_mask",
+    P060a: "ble_scan2_filter2_value",
+    P060b: "ble_scan2_filter2_offset",
+    P060c: "ble_scan2_nb_beacons",
+    P060d: "ble_scan2_report_type",
+    P060e: "ble_scan2_report_id_ofs",
+
+    P0700: "accelero_motion_sensi",
+    P0701: "accelero_motion_duration",
+    P0702: "accelero_full_scale",
+    P0703: "accelero_output_data_rate",
+    P0704: "accelero_shock_threshold",
+
+    P0800: "net_selection",
+    P0801: "net_reconnection_spacing_static",
+    P0802: "net_main_probe_timeout_static",
+    P0803: "net_reconnection_spacing_motion",
+    P0804: "net_main_probe_timeout_motion",
+
+    P0900: "lorawan_cnx_timeout",
+    P0901: "lorawan_heartbeat_period",
+    P0902: "lorawan_probe_max_attempts_static",
+    P0903: "lorawan_probe_period_static",
+    P0904: "lorawan_confirm_notif_map",
+    P0905: "lorawan_confirm_notif_retry",
+    P0906: "lorawan_s1_tx_strategy",
+    P0907: "lorawan_s1_ul_port",
+    P0908: "lorawan_s1_dl_port",
+    P0909: "lorawan_probe_period_motion",
+    P090a: "lorawan_probe_max_attempts_motion",
+
+    P0a00: "cell_sim_interface",
+    P0a01: "cell_network_type",
+    P0a02: "cell_search_bands",
+    P0a03: "cell_cnx_timeout_static",
+    P0a04: "cell_cnx_timeout_motion",
+    P0a05: "cell_cnx_nw_reconnect_timeout",
+    P0a06: "cell_cnx_max_attempts",
+    P0a07: "cell_access_point_name",
+    P0a08: "cell_operator_sim_slot_0",
+    P0a09: "cell_operator_sim_slot_1",
+    P0a0a: "cell_low_power_mode",
+    P0a0b: "cell_psm_tau_period",
+    P0a0c: "cell_psm_active_time",
+    P0a0d: "cell_edrx_pcl",
+    P0a0e: "cell_edrx_ptw",
+    P0a0f: "cell_rai_timeout",
+    P0a10: "cell_max_probe_attempts",
+    P0a11: "cell_probe_period",
+    P0a12: "cell_s1_transport_proto",
+    P0a13: "cell_s1_ip_url_addr",
+    P0a14: "cell_s1_dst_ip_port",
+    P0a15: "cell_s1_src_ip_port",
+    P0a16: "cell_s1_tx_aggr_time",
+    P0a17: "cell_apn_user_id",
+    P0a18: "cell_apn_user_pwd",
+    P0a19: "cell_apn_auth_protocol",
+    P0a1a: "cell_fuota_server_ip_url_addr",
+    P0a1b: "cell_restricted_plmns",
+    P0a1c: "cell_lpm_recovery_timeout",
+
+    P0b00: "ble_cnx_tx_power",
+    P0b01: "ble_cnx_adv_duration",
+    P0b02: "ble_cnx_behavior",
+    P0b03: "ble_beacon_tx_power",
+    P0b04: "ble_beacon_type",
+    P0b05: "ble_beacon_identifier",
+    P0b06: "ble_beacon_fast_adv_interval",
+    P0b07: "ble_beacon_slow_adv_interval",
+    P0b08: "ble_scan_presence_period",
+    P0b09: "ble_scan_presence_max_time",
+};
+
+
+/**
+ * Default AT3 device configuration (name format), loaded by the
+ * "Load default configuration" button for quick testing of the tool.
+ * Same content as AT3_name_based_config.txt.
+ */
+const DEFAULT_DEVICE_CONFIG_TEXT = `
+core_monitoring_period = 300
+core_status_period = 3600
+core_notif_enable = "{3B,00,07,03,00,00}"
+core_temp_high_threshold = 60
+core_temp_low_threshold = 0
+core_temp_hysteresis = 5
+core_button1_map = 896
+core_button2_map = 0
+core_buttons_timing = 3289762
+core_led0_map = "{00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00}"
+core_led1_map = "{00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00}"
+core_buzzer_map = "{09,03,24,09,01,25,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00}"
+core_almanac_validity = 120
+core_almanac_outdated_ratio = 100
+core_db_type_mask = "{00,00,00,00,00,00,00}"
+geoloc_motion_period = 300
+geoloc_static_period = 3600
+geoloc_sos_period = 60
+geoloc_motion_nb_start = 1
+geoloc_motion_nb_stop = 1
+geoloc_start_stop_period = 120
+geoloc_gnss_hold_on_mode = 0
+geoloc_gnss_hold_on_timeout = 0
+geoloc_profile0_triggers = 61
+geoloc_profile1_triggers = 0
+geoloc_profile2_triggers = 0
+geoloc_gbe_profile0_techno = "{06,00,00,00,00,00}"
+geoloc_gbe_profile1_techno = "{00,00,00,00,00,00}"
+geoloc_gbe_profile2_techno = "{00,00,00,00,00,00}"
+gnss_constellation = 2
+gnss_max_time = 300
+gnss_t0_timeout_static = 30
+gnss_ehpe_static = 20
+gnss_convergence_static = 20
+gnss_t0_timeout_motion = 30
+gnss_ehpe_motion = 30
+gnss_convergence_motion = 20
+gnss_standby_time = 604800
+gnss_agnss_max_time = 45
+gnss_t1_timeout = 0
+lr_constellation = 6
+lr_scan_mode = 1
+lr_nb_scan = 2
+lr_inter_scan_time = 5
+lr_wifi_report_nb_bssid = 4
+lr_wifi_min_nb_bssid = 3
+lr_wifi_min_rssi = 0
+lr_wifi_bssid_mac_type = 1
+lr_rbeacon_type = 2
+lr_rbeacon_sos_period = 0
+lr_rbeacon_motion_period = 0
+lr_rbeacon_static_period = 0
+lr_rbeacon_ranging_timeout = 120
+ble_scan1_duration = 3000
+ble_scan2_duration = 3000
+ble_scan1_window = 120
+ble_scan2_window = 120
+ble_scan1_interval = 130
+ble_scan2_interval = 130
+ble_scan1_type = 0
+ble_scan2_type = 0
+ble_scan1_min_rssi = -80
+ble_scan2_min_rssi = -80
+ble_scan1_min_nb_beacons = 1
+ble_scan2_min_nb_beacons = 1
+ble_scan1_filter1_mask = "{00,00,00,00,00,00,00,00,00,00}"
+ble_scan2_filter1_mask = "{00,00,00,00,00,00,00,00,00,00}"
+ble_scan1_filter1_value = "{00,00,00,00,00,00,00,00,00,00}"
+ble_scan2_filter1_value = "{00,00,00,00,00,00,00,00,00,00}"
+ble_scan1_filter1_offset = 0
+ble_scan2_filter1_offset = 0
+ble_scan1_filter2_mask = "{00,00,00,00,00,00,00,00,00,00}"
+ble_scan2_filter2_mask = "{00,00,00,00,00,00,00,00,00,00}"
+ble_scan1_filter2_value = "{00,00,00,00,00,00,00,00,00,00}"
+ble_scan2_filter2_value = "{00,00,00,00,00,00,00,00,00,00}"
+ble_scan1_filter2_offset = 0
+ble_scan2_filter2_offset = 0
+ble_scan1_nb_beacons = 4
+ble_scan2_nb_beacons = 4
+ble_scan1_report_type = 0
+ble_scan2_report_type = 0
+ble_scan1_report_id_ofs = 0
+ble_scan2_report_id_ofs = 0
+accelero_motion_sensi = 8
+accelero_motion_duration = 120
+accelero_full_scale = 3
+accelero_output_data_rate = 0
+accelero_shock_threshold = 0
+net_selection = 0
+net_reconnection_spacing_static = 600
+net_main_probe_timeout_static = 600
+net_reconnection_spacing_motion = 600
+net_main_probe_timeout_motion = 600
+lorawan_cnx_timeout = 0
+lorawan_heartbeat_period = 600
+lorawan_probe_max_attempts_static = 4
+lorawan_probe_period_static = 43200
+lorawan_probe_period_motion = 43200
+lorawan_probe_max_attempts_motion = 4
+lorawan_confirm_notif_map = "{00,00,00,00,00,00}"
+lorawan_confirm_notif_retry = 0
+lorawan_s1_tx_strategy = 473102
+lorawan_s1_ul_port = 19
+lorawan_s1_dl_port = 3
+cell_sim_interface = 0
+cell_network_type = 1
+cell_search_bands = "{01,03,08,13,14,1C,00,00,00,00,00,00,00,00,00,00,00,00,00}"
+cell_cnx_timeout_static = 180
+cell_cnx_timeout_motion = 300
+cell_cnx_nw_reconnect_timeout = 60
+cell_cnx_max_attempts = 3
+cell_access_point_name = ""
+cell_operator_sim_slot_0 = ""
+cell_operator_sim_slot_1 = ""
+cell_low_power_mode = 1
+cell_psm_tau_period = 24
+cell_psm_active_time = 2
+cell_edrx_pcl = 15
+cell_edrx_ptw = 3
+cell_rai_timeout = 500
+cell_max_probe_attempts = 0
+cell_probe_period = 120
+cell_s1_transport_proto = 1
+cell_s1_ip_url_addr = ""
+cell_s1_dst_ip_port = 0
+cell_s1_src_ip_port = 0
+cell_s1_tx_aggr_time = 120
+cell_apn_user_id = ""
+cell_apn_user_pwd = ""
+cell_apn_auth_protocol = 1
+cell_fuota_server_ip_url_addr = "tools.abeeway.io"
+cell_restricted_plmns = ""
+cell_lpm_recovery_timeout = 0
+ble_cnx_tx_power = 25
+ble_cnx_adv_duration = 60
+ble_cnx_behavior = 1
+ble_beacon_tx_power = 25
+ble_beacon_type = 0
+ble_beacon_identifier = "{00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00}"
+ble_beacon_fast_adv_interval = 333
+ble_beacon_slow_adv_interval = 1000
+ble_scan_presence_period = 0
+ble_scan_presence_max_time = 0
+`;
+
+const CONFIG_PARAM_ID_REGEX = /^[Pp][0-9a-fA-F]{4}$/;
+
+/**
+ * Convert a config key to its parameter name.
+ * Returns { name, isId, known }:
+ *   - name key ("core_status_period") → returned as is (isId = false)
+ *   - known ID  ("P0101" / "p0101")   → its name       (isId = true, known = true)
+ *   - unknown ID                      → the ID itself  (isId = true, known = false)
+ */
+function configKeyToName(key) {
+    if (!CONFIG_PARAM_ID_REGEX.test(key)) return { name: key, isId: false, known: true };
+    const id   = 'P' + key.slice(1).toLowerCase();
+    const name = CONFIG_PARAM_ID_TO_NAME[id];
+    return name ? { name, isId: true, known: true } : { name: key, isId: true, known: false };
+}
+
 const SCANCOLL_MIN_PAYL_LEN                  = 8;
 const SCANCOLL_ADDITIONAL_MACADDR_PAYL_LEN   = 7;
 const SCANCOLL_ADDITIONAL_BEACONID_PAYL_LEN  = 4;
@@ -233,9 +582,9 @@ const SCANCOLL_ADDITIONAL_BEACONID_PAYL_LEN  = 4;
 // LoRa time-on-air + RX windows → average current [mA].
 //
 // ToA formula (LoRa spec, explicit header, CRC enabled, CR 4/5):
-//   T_sym [ms]   = 2^SF / BW_kHz  (BW = 125 kHz)
+//   T_sym [ms]   = 2^SF / BW_kHz  (BW = 125 kHz unless given: 250 / 500 kHz DRs)
 //   T_preamble   = (n_preamble + 4.25) × T_sym = 12.25 × T_sym  (n_preamble = 8)
-//   DE           = 1 if SF ≥ 11 (low-data-rate optimisation), else 0
+//   DE           = 1 if T_sym ≥ 16 ms (low-data-rate optimisation: SF11/SF12 at 125 kHz), else 0
 //   n_payload    = 8 + max(⌈(8×PL - 4×SF + 44) / (4×(SF − 2×DE))⌉ × 5, 0)
 //     where PL = payload_bytes + 13 (LoRaWAN MAC overhead:
 //                MHDR(1) + DevAddr(4) + FCtrl(1) + FCnt(2) + FPort(1) + MIC(4))
@@ -249,15 +598,28 @@ const SCANCOLL_ADDITIONAL_BEACONID_PAYL_LEN  = 4;
 //   Note: I_TX already includes MCU active current (measured with MCU running)
 //
 // Average current [mA] = (E_TX + E_RX) / V × N_msg_per_day / 86400
-function calculate_lora_current(sf, tx_power, payl_len, nof_msg_per_day, product) {
-    const T_sym      = (2 ** sf) / 125;                   // symbol period [ms]
+//
+// FSK DRs (e.g. EU868 DR7, 50 kbps): ToA = (5 preamble + 3 sync + 1 length + PL + 2 CRC) bytes × 8 / kbps
+//
+// `sf` may be a number (LoRa, 125 kHz) or a modulation from LORAWAN_DR_TABLE ({sf, bw} or {fsk}).
+function lora_time_on_air_ms(mod, payl_len) {
     const T_radio_startup = 80;                           // Radio startup time [ms]
+    const PL = payl_len + 13;                             // total PHY bytes incl. LoRaWAN overhead
+    if (mod.fsk) {
+        return T_radio_startup + (5 + 3 + 1 + PL + 2) * 8 / mod.fsk;
+    }
+    const sf         = mod.sf;
+    const T_sym      = (2 ** sf) / (mod.bw || 125);       // symbol period [ms]
     const T_preamble = 12.25 * T_sym;                     // preamble time [ms]
-    const DE         = sf >= 11 ? 1 : 0;
-    const PL         = payl_len + 13;                     // total PHY bytes incl. LoRaWAN overhead
+    const DE         = T_sym >= 16 ? 1 : 0;
     const n_payload  = 8 + Math.max(
         Math.ceil((8 * PL - 4 * sf + 44) / (4 * (sf - 2 * DE))) * 5, 0);
-    const T_packet   = T_radio_startup + T_preamble + n_payload * T_sym;    // time on air [ms]
+    return T_radio_startup + T_preamble + n_payload * T_sym;
+}
+
+function calculate_lora_current(sf, tx_power, payl_len, nof_msg_per_day, product) {
+    const mod        = typeof sf === 'object' ? sf : { sf, bw: 125 };
+    const T_packet   = lora_time_on_air_ms(mod, payl_len);  // time on air [ms]
 
     const E_TX = T_packet * HW.supply_voltage * getTxCurrentMa(tx_power, product) / 1000;
     const E_RX = 2 * HW.lora_rx_window_ms * HW.supply_voltage * HW.lora_rx_current_ma / 1000;
@@ -267,14 +629,17 @@ function calculate_lora_current(sf, tx_power, payl_len, nof_msg_per_day, product
 
 // DR-distribution-weighted LoRa current.
 // dr_dist: [{dr, pct}, ...] where pct values sum to 100.
-// Falls back to DR→SF lookup for the configured region.
+// Modulation per DR comes from LORAWAN_DR_TABLE for the configured region.
+// DRs not defined in the region are ignored and the remaining weights are
+// renormalised, so every uplink is still counted.
 function calculate_lora_current_dr_weighted(tx_power, payl_len, nof_msg_per_day, dr_dist, region, product) {
-    const sfMap = LORAWAN_DR_TO_SF[region] ?? LORAWAN_DR_TO_SF.EU868;
+    const drMap = LORAWAN_DR_TABLE[region] ?? LORAWAN_DR_TABLE.EU868;
+    const valid = dr_dist.filter(({ dr, pct }) => drMap[dr] && pct > 0);
+    const sum   = valid.reduce((s, { pct }) => s + pct, 0);
+    if (sum <= 0) return 0;
     let current = 0;
-    for (const { dr, pct } of dr_dist) {
-        const sf = sfMap[dr];
-        if (sf == null || pct <= 0) continue;
-        current += (pct / 100) * calculate_lora_current(sf, tx_power, payl_len, nof_msg_per_day, product);
+    for (const { dr, pct } of valid) {
+        current += (pct / sum) * calculate_lora_current(drMap[dr], tx_power, payl_len, nof_msg_per_day, product);
     }
     return current;
 }
@@ -392,10 +757,22 @@ function calculate_battery_life_time(input) {
     const dr_dist  = input.dr_distribution?.length > 0 ? input.dr_distribution : null;
     const product  = input.product ?? 'compact';
 
-    // Helper: pick DR-weighted or single-SF LoRa current calculator (TX1)
-    const loraCalc = (payl_len, nof_msg) => dr_dist
-        ? calculate_lora_current_dr_weighted(input.tx_power, payl_len, nof_msg, dr_dist, region, product)
+    // TX1 DR choice depends on device state (lorawan_s1_tx_strategy):
+    //   static : ADR distribution when ADR is on, else byte 1 mask  → input.dr_distribution
+    //   motion : byte 1 mask (ADR ignored in motion)                 → input.lora_tx1_motion_dr_distribution
+    // Without a motion distribution, TX1 uses input.dr_distribution in both states.
+    const dr_dist_motion = input.lora_tx1_motion_dr_distribution?.length > 0
+        ? input.lora_tx1_motion_dr_distribution : dr_dist;
+    const lora_motion_frac = input.lora_motion_frac ?? 0;
+    const loraCalcWith = dist => (payl_len, nof_msg) => dist
+        ? calculate_lora_current_dr_weighted(input.tx_power, payl_len, nof_msg, dist, region, product)
         : calculate_lora_current(input.sf ?? 10, input.tx_power, payl_len, nof_msg, product);
+    const loraCalcStatic = loraCalcWith(dr_dist);
+    const loraCalcMotion = loraCalcWith(dr_dist_motion);
+    // Helper: TX1 LoRa current for messages spread over static and motion time
+    const loraCalc = (payl_len, nof_msg) =>
+        (1 - lora_motion_frac) * loraCalcStatic(payl_len, nof_msg) +
+        lora_motion_frac       * loraCalcMotion(payl_len, nof_msg);
 
     // TX2: fraction of uplinks duplicated, using TX2 DR distribution (falls back to TX1 if absent)
     const tx2_factor  = input.lora_tx2_factor ?? 0;
@@ -407,12 +784,13 @@ function calculate_battery_life_time(input) {
         : () => 0;
 
     // Print formulas to console once per calculation
-    const sfMap = LORAWAN_DR_TO_SF[region] ?? LORAWAN_DR_TO_SF.EU868;
-    const drSfStr = dr_dist
-        ? dr_dist.map(({dr, pct}) => `DR${dr}(SF${sfMap[dr] ?? '?'}) ${pct.toFixed(1)}%`).join(', ')
-        : `SF${input.sf ?? 10} (single)`;
+    const fmtDist = dist => dist.map(({dr, pct}) => `${loraDrLabel(dr, region)} ${pct.toFixed(1)}%`).join(', ');
+    const drSfStr = !dr_dist ? `SF${input.sf ?? 10} (single)`
+        : dr_dist_motion !== dr_dist && fmtDist(dr_dist_motion) !== fmtDist(dr_dist)
+            ? `Static: ${fmtDist(dr_dist)}  |  Motion: ${fmtDist(dr_dist_motion)}`
+            : fmtDist(dr_dist);
     const tx2DrStr = tx2_dr_dist
-        ? tx2_dr_dist.map(({dr, pct}) => `DR${dr}(SF${sfMap[dr] ?? '?'}) ${pct.toFixed(1)}%`).join(', ')
+        ? fmtDist(tx2_dr_dist)
         : 'same as TX1';
     console.log(
 `[LoRa consumption formula]
@@ -420,13 +798,14 @@ function calculate_battery_life_time(input) {
   TX1 DR/SF : ${drSfStr}
   TX2 DR/SF : ${tx2DrStr}   TX2 factor : ${(tx2_factor * 100).toFixed(0)}% of uplinks
 
-  Time-on-air (LoRa spec, explicit header, CRC on, CR 4/5, BW 125 kHz):
-    T_sym [ms]   = 2^SF / 125
+  Time-on-air (LoRa spec, explicit header, CRC on, CR 4/5, BW 125 kHz unless DR uses 250/500 kHz):
+    T_sym [ms]   = 2^SF / BW_kHz
     T_preamble   = 12.25 × T_sym          (8 preamble symbols + 4.25 header symbols)
-    DE           = 1 if SF ≥ 11 else 0   (low-data-rate optimisation)
+    DE           = 1 if T_sym ≥ 16 ms else 0   (low-data-rate optimisation)
     PL           = payload_bytes + 13     (LoRaWAN overhead: MHDR+FHDR+FPort+MIC)
     n_payload    = 8 + max(⌈(8×PL − 4×SF + 44) / (4×(SF − 2×DE))⌉ × 5, 0)
     T_packet     = T_preamble + n_payload × T_sym
+    FSK DR       : T_packet = (5 + 3 + 1 + PL + 2) bytes × 8 / kbps
 
   Energy per uplink [mJ]:
     E_TX  = T_packet [ms] × V [V] × I_TX(dBm, product) [mA]  / 1000   (I_TX includes MCU)
@@ -545,10 +924,15 @@ function calculate_battery_life_time(input) {
         (input.wifi.nof_msg_per_day       || 0) +
         ble_msgs_per_day;
 
-    // Cellular — cellular_factor scales total uplinks to those routed over cellular
+    // Cellular — when the page provides the LTE uplink count (status + probes + motion
+    // notifications + position uplinks, already scaled by cellular usage), use it so the
+    // energy matches the LTE uplinks table. Otherwise cellular_factor scales the message sum.
+    const cellular_uplinks_per_day = input.cellular.uplinks_per_day !== undefined
+        ? input.cellular.uplinks_per_day
+        : total_uplinks_per_day * cellular_factor;
     const cellular_current = calculate_cellular_current(
         input.cellular.coverage_pct,
-        total_uplinks_per_day * cellular_factor
+        cellular_uplinks_per_day
     );
 
     // Recovery beacon
@@ -572,7 +956,8 @@ function calculate_battery_life_time(input) {
     const lora_probe_nof  = input.lora_probe?.nof_per_day || 0;
     const lora_probe_current = LORA_PROBE_ENERGY_MAH * lora_probe_nof / 24;
 
-    // Motion notifications — TX2 factors are mode-specific: start→dM (entering motion), end→dS (entering static)
+    // Motion notifications — mode-specific, for TX1 DR and TX2 factor alike:
+    // start → motion (byte 1 DR, dM), end → static (ADR/byte 1 DR, dS)
     const motStartNof = input.motion_notifications?.start_nof_per_day || 0;
     const motEndNof   = input.motion_notifications?.end_nof_per_day   || 0;
     const motStartTx2 = input.motion_notifications?.tx2_factor_start  ?? 0;
@@ -588,9 +973,9 @@ function calculate_battery_life_time(input) {
             : calculate_lora_current(input.sf ?? 10, input.tx_power, pl, n * motEndTx2, product))
         : () => 0;
     const motion_start_lora_current =
-        (loraCalc(MOTION_START_PAYL_LEN, motStartNof) + loraCalcTx2Start(MOTION_START_PAYL_LEN, motStartNof)) * lora_factor;
+        (loraCalcMotion(MOTION_START_PAYL_LEN, motStartNof) + loraCalcTx2Start(MOTION_START_PAYL_LEN, motStartNof)) * lora_factor;
     const motion_end_lora_current =
-        (loraCalc(MOTION_END_PAYL_LEN, motEndNof) + loraCalcTx2End(MOTION_END_PAYL_LEN, motEndNof)) * lora_factor;
+        (loraCalcStatic(MOTION_END_PAYL_LEN, motEndNof) + loraCalcTx2End(MOTION_END_PAYL_LEN, motEndNof)) * lora_factor;
 
     // Group totals
     // Geolocation: HW scan/fix current only. LoRa TX for all message types lives in lora_total.
@@ -680,7 +1065,12 @@ if (typeof module !== 'undefined') {
         calculate_lora_current_dr_weighted,
         calculate_cellular_current,
         applyHardwareMeasurements,
-        LORAWAN_DR_TO_SF,
+        configKeyToName,
+        CONFIG_PARAM_ID_TO_NAME,
+        DEFAULT_DEVICE_CONFIG_TEXT,
+        LORAWAN_DR_TABLE,
+        loraDrLabel,
+        lora_time_on_air_ms,
         LORA_TX_CURRENT_MA,
         CELLULAR_ENERGY_PER_UPLINK_MAH,
         LORA_PROBE_ENERGY_MAH,

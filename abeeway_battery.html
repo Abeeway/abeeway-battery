@@ -27,6 +27,51 @@
             align-items: stretch;
             align-content: flex-start;
         }
+        .config-predefined-list {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 4px;
+            margin: 4px 0 6px 0;
+        }
+        .config-predefined-btn {
+            background: #fff;
+            color: #008293;
+            border: 1px solid #008293;
+            padding: 3px 12px;
+            border-radius: 4px;
+            font-size: .85rem;
+            cursor: pointer;
+            text-align: left;
+        }
+        .config-predefined-btn:hover,
+        .config-predefined-btn.active {
+            background: #008293;
+            color: #fff;
+        }
+        /* Configuration & General Settings: the boxes share the screen width
+           equally and have a fixed height, so they do not resize when content
+           changes (status message, file name, ...). On narrow screens they
+           wrap below --gs-box-min-width. Content taller than the box scrolls. */
+        .general-settings-row {
+            --gs-box-min-width: 240px;
+            --gs-box-height:    380px;
+        }
+        .general-settings-row > fieldset.flexitem {
+            flex: 1 1 0;
+            min-width: var(--gs-box-min-width);
+            height: var(--gs-box-height);
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+        .general-settings-row input:not([type="checkbox"]):not([type="radio"]),
+        .general-settings-row select {
+            max-width: 100%;
+            box-sizing: border-box;
+        }
+        .general-settings-row small {
+            overflow-wrap: anywhere;   /* long file names wrap instead of widening the box */
+        }
         .flexitem {
             flex-flow: 1 1 1;
             padding: 4px;
@@ -388,6 +433,34 @@
         .dr-chip.dr-chip-inactive label { color: #bbb; }
         .dr-chip.dr-chip-inactive { border-color: #e8e8e8; background: #f8f8f8; }
         .dr-section-disabled { opacity: .4; pointer-events: none; }
+        /* TX Strategy boxes: fixed height so they do not resize when a config
+           (ADR on/off, DR masks) is loaded; widths share the row in proportion
+           to their content (flags 1 : TX1 2 : TX2 1.5) and wrap on narrow
+           screens. Content taller than the box scrolls. */
+        .tx-strategy-row {
+            --tx-box-height: 390px;
+        }
+        .tx-strategy-row > fieldset.flexitem {
+            flex: 1 1 0;
+            min-width: 220px;
+            height: var(--tx-box-height);
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+        .tx-strategy-row > fieldset#tx1_dr_fs { flex-grow: 2;   min-width: 300px; }
+        .tx-strategy-row > fieldset#tx2_dr_fs { flex-grow: 1.5; }
+        /* DR grids fill their box evenly: 8 equal columns (DR0–DR7 on one line)
+           when the box is wide enough, otherwise 2 rows of 4 equal columns. */
+        #tx1_adr_section, #tx1_dr_section, #tx2_dr_body { container-type: inline-size; }
+        .tx-strategy-row .dr-grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+        }
+        @container (min-width: 480px) {
+            .tx-strategy-row .dr-grid { grid-template-columns: repeat(8, minmax(0, 1fr)); }
+        }
+        .tx-strategy-row .dr-chip { min-width: 0; }
+        .tx-strategy-row .dr-chip input[type="number"] { width: 100%; max-width: 60px; box-sizing: border-box; }
         .adr-bar-wrap {
             height: 7px;
             width: 100%;
@@ -455,18 +528,73 @@
             padding: 12px;
             background: #fff;
         }
+        /* ── Timing Parameters (collapsible fieldset, collapsed by default) ── */
+        #timing_params_fs > legend { cursor: pointer; user-select: none; }
+        #timing_params_fs > legend .tp-arrow {
+            display: inline-block; width: .9em; font-size: .7em;
+            transition: transform .18s ease;
+        }
+        #timing_params_fs:not(.collapsed) > legend .tp-arrow { transform: rotate(90deg); }
+        #timing_params_fs.collapsed > .timing-body { display: none; }
+        /* TX Strategy: same collapsible behaviour, collapsed by default */
+        #tx_strategy_fs > legend { cursor: pointer; user-select: none; }
+        #tx_strategy_fs > legend .tp-arrow {
+            display: inline-block; width: .9em; font-size: .7em;
+            transition: transform .18s ease;
+        }
+        #tx_strategy_fs:not(.collapsed) > legend .tp-arrow { transform: rotate(90deg); }
+        #tx_strategy_fs.collapsed > .tx-strategy-row { display: none; }
+        #timing_params_fs > legend small { font-weight: normal; color: #888; font-size: .75rem; }
+        .timing-row { gap: 8px; }
+        /* Each group gets width in proportion to its parameter count (--n) and
+           shows its parameters side by side; groups wrap as whole blocks on
+           narrow screens and stretch to fill the line, so no cell stays empty. */
+        .timing-row > fieldset.flexitem {
+            flex: var(--n) 1 0;
+            min-width: calc(var(--n) * 135px);
+            margin: 0;
+            display: flex; flex-direction: column;   /* boxes stretch to the row height */
+        }
+        .timing-row > fieldset.flexitem > .timing-group { flex: 1; }
+        .timing-group {
+            display: grid;
+            grid-template-columns: repeat(var(--n), minmax(0, 1fr));
+            gap: 6px;
+        }
+        @media (max-width: 480px) {
+            .timing-row > fieldset.flexitem { min-width: 100%; }
+            .timing-group { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        }
+        .timing-group { grid-template-rows: repeat(4, auto); row-gap: 0; }
+        /* Boxes share their group's rows (subgrid) so name / input / hint line up
+           across a group even when a parameter name wraps onto two lines. */
+        .timing-group .param-box {
+            max-width: none; min-width: 0;
+            display: grid; grid-row: span 4; grid-template-rows: subgrid; row-gap: 0;
+        }
+        .timing-group .param-box label { align-self: end; }
+        .timing-group .param-box label code { font-size: .74rem; color: #333; overflow-wrap: anywhere; }
+        .timing-group .tp-input-row { display: flex; align-items: center; gap: 4px; margin-top: 5px; }
+        .timing-group .tp-input-row input { margin: 0; flex: 1; min-width: 0; }
+        .timing-group .tp-unit { font-size: .75rem; color: #555; }
+        .timing-group .tp-hint { font-size: .7rem; color: #888; margin-top: 3px; }
+        .timing-group .tp-orig { font-size: .7rem; color: #c60; font-weight: bold; }
+        .timing-group .param-box.modified { border-color: #e0a040; background: #fff8ec; }
+        .timing-footer { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 6px; }
+        .timing-footer small { color: #888; flex: 1; min-width: 200px; }
+        .timing-footer button { width: auto; flex: none; margin: 0; }
     </style>
 </head>
 <body>
 
-    <h1>Battery Lifetime Estimator</h1>
+    <h1>AT3 Battery Lifetime Estimator</h1>
 
     <!-- ════════════════════════════════════════════
          SECTION 1 — General Configuration
     ═════════════════════════════════════════════ -->
     <fieldset>
         <legend>Configuration &amp; General Settings</legend>
-        <div class="flexcontainer">
+        <div class="flexcontainer general-settings-row">
 
             <fieldset class="flexitem">
                 <legend>Product</legend>
@@ -478,11 +606,25 @@
             </fieldset>
 
             <fieldset class="flexitem">
-                <legend>Device Configuration &amp; Conditions</legend>
-                <label for="config_file">Device config file (.txt / .cfg):</label><br />
-                <input type="file" id="config_file" accept=".txt,.cfg" onchange="loadConfigFile(event)" style="margin-bottom:4px;"><br />
+                <legend>Device Configuration</legend>
+                <label for="config_file">Load configuration file:</label><br />
+                <input type="file" id="config_file" accept=".txt,.cfg" onchange="loadConfigFile(event)" style="margin-bottom:8px;"><br />
+
+                <label>Load predefined configuration:</label>
+                <!-- Default config button + one button per template (added by initConfigTemplates) -->
+                <div id="config_predefined_list" class="config-predefined-list">
+                    <button type="button" class="config-predefined-btn" id="config_default_btn"
+                            onclick="loadDefaultConfig()"
+                            title="Load the default AT3 configuration">
+                        Default configuration
+                    </button>
+                </div>
+
                 <small id="config_status" style="display:block; margin-bottom:10px;"></small>
-                <hr />
+            </fieldset>
+
+            <fieldset class="flexitem">
+                <legend>Device Mobility</legend>
                 <label for="trips_per_day">Number of trips per day:</label><br />
                 <input type="number" min="0" step="1" id="trips_per_day" value="4" oninput="onTripChange()"><br />
                 <label for="avg_trip_duration_min" style="margin-top:4px; display:block;">Avg. trip duration [min]:</label>
@@ -523,11 +665,34 @@
                 <input type="number" id="annual_discharge_pct" min="0" max="100" step="0.1" value="2.4" readonly
                        style="background:#f5f5f5;">
                 <small style="color:#666;">
-                    Based on temperature-weighted discharge model (source: wetrak lifetime Excel).
+                    Based on temperature-weighted discharge model.
                     Select "Custom" to enter a value manually.
                 </small>
             </fieldset>
 
+        </div>
+    </fieldset>
+
+    <!-- ════════════════════════════════════════════
+         Timing Parameters (collapsed by default) — tunable copies of the
+         config timing values; edits apply to the estimate only.
+    ═════════════════════════════════════════════ -->
+    <fieldset id="timing_params_fs" class="collapsed">
+        <legend onclick="document.getElementById('timing_params_fs').classList.toggle('collapsed')">
+            <span class="tp-arrow">&#9654;</span> Timing Parameters
+            <small>(click to expand &mdash; tune the configuration timings)</small>
+        </legend>
+        <div class="timing-body">
+            <p id="timing_params_notice" style="color:#999; font-style:italic; margin:0 0 6px;">
+                Load a configuration (file, default or template) to edit its timing parameters.
+            </p>
+            <div class="flexcontainer timing-row" id="timing_params_grid"><!-- built by JS --></div>
+            <div class="timing-footer">
+                <button type="button" id="timing_params_reset" onclick="resetTimingParams()" disabled
+                        style="padding:3px 12px; cursor:pointer;">Reset to configuration values</button>
+                <small>Changes apply to the estimate only; the loaded configuration file is not modified.
+                    Press <strong>Calculate</strong> to update the results.</small>
+            </div>
         </div>
     </fieldset>
 
@@ -761,9 +926,11 @@
             </div>
 
             <!-- ── TX Strategy sub-section ── -->
-            <fieldset style="margin-top:8px;">
-                <legend>TX Strategy</legend>
-                <div class="flexcontainer">
+            <fieldset id="tx_strategy_fs" class="collapsed" style="margin-top:8px;">
+                <legend onclick="document.getElementById('tx_strategy_fs').classList.toggle('collapsed')">
+                    <span class="tp-arrow">&#9654;</span> TX Strategy
+                </legend>
+                <div class="flexcontainer tx-strategy-row">
 
                     <!-- Control Flags (read-only from config) -->
                     <fieldset class="flexitem">
@@ -1005,6 +1172,7 @@
 </body>
 
 <script src="abeeway_battery.js"></script>
+<script src="config_templates.js"></script>
 <script>
 
     /***********************************************************************
@@ -1012,19 +1180,34 @@
      ***********************************************************************/
     window.deviceConfig = {};
 
+    /**
+     * Parse a device config file. Two formats are supported, even mixed:
+     *   - name-based : core_monitoring_period = 300
+     *   - ID-based   : P0100=300   (production format, with CONFIGURATION /
+     *                  VERSION x / END lines, which are skipped)
+     * IDs are converted to parameter names (CONFIG_PARAM_ID_TO_NAME), so the
+     * returned object is always keyed by name. Lines are matched by key,
+     * not by position, so partial files are supported.
+     * Returns { config, nbById, nbByName, unknownIds }.
+     */
     function parseDeviceConfig(text) {
-        const config = {};
+        const config     = {};
+        const unknownIds = [];
+        let nbById = 0, nbByName = 0;
         for (const line of text.split('\n')) {
             const trimmed = line.trim();
             if (!trimmed || trimmed.startsWith('#')) continue;
             const eqIdx = trimmed.indexOf('=');
-            if (eqIdx === -1) continue;
+            if (eqIdx === -1) continue;   // CONFIGURATION / VERSION / END lines
             const key = trimmed.slice(0, eqIdx).trim();
             let val = trimmed.slice(eqIdx + 1).trim();
             if (val.startsWith('"') && val.endsWith('"')) val = val.slice(1, -1);
-            config[key] = val;
+            const { name, isId, known } = configKeyToName(key);
+            if (isId && !known) unknownIds.push(key);
+            if (isId) nbById++; else nbByName++;
+            config[name] = val;
         }
-        return config;
+        return { config, nbById, nbByName, unknownIds };
     }
 
     function loadConfigFile(event) {
@@ -1038,27 +1221,202 @@
 
         const reader = new FileReader();
         reader.onload = function(e) {
-            const cfg   = parseDeviceConfig(e.target.result);
-            const count = Object.keys(cfg).length;
-            window.deviceConfig       = cfg;
-            window.lastConfigFileName = file.name;
-
-            status.textContent = 'Updating interface…';
-
-            // Yield to the browser so it can paint the status message,
-            // then do the heavy DOM work (innerHTML rebuild + input updates).
-            setTimeout(() => {
-                renderGeolocProfiles();
-                updateGeneralFromConfig(cfg);
-                status.style.color = '#008293';
-                status.textContent = `Loaded: ${file.name} — ${count} parameter(s) parsed.`;
-            }, 0);
+            setActivePredefinedButton(null);
+            applyDeviceConfigText(e.target.result, file.name);
         };
         reader.onerror = function() {
             status.style.color = '#c00';
             status.textContent = 'Error reading file.';
         };
         reader.readAsText(file);
+    }
+
+    /**
+     * Load a predefined configuration (default or template) and highlight its button.
+     * btn: the clicked button, or null.
+     */
+    function loadPredefinedConfig(text, sourceName, btn) {
+        document.getElementById('config_file').value = '';   // clear any previously picked file
+        setActivePredefinedButton(btn);
+        const status = document.getElementById('config_status');
+        status.style.color = '#888';
+        status.textContent = 'Parsing…';
+        applyDeviceConfigText(text, sourceName);
+    }
+
+    /** Highlight the predefined config currently loaded (null = none, e.g. a file was loaded) */
+    function setActivePredefinedButton(btn) {
+        document.querySelectorAll('#config_predefined_list .config-predefined-btn')
+            .forEach(b => b.classList.toggle('active', b === btn));
+    }
+
+    /** "Default configuration" button: loads DEFAULT_DEVICE_CONFIG_TEXT */
+    function loadDefaultConfig() {
+        loadPredefinedConfig(DEFAULT_DEVICE_CONFIG_TEXT, 'Default configuration',
+                             document.getElementById('config_default_btn'));
+    }
+
+    /** Templates embedded by build_config_templates.js (empty if config_templates.js is missing) */
+    function getConfigTemplates() {
+        return (typeof CONFIG_TEMPLATES !== 'undefined' && Array.isArray(CONFIG_TEMPLATES)) ? CONFIG_TEMPLATES : [];
+    }
+
+    /***********************************************************************
+     * Timing Parameters section — user-tunable config timings.
+     * Each edit writes the value into window.deviceConfig (so every part of
+     * the estimate that reads the config sees it) and syncs the fields that
+     * were filled from the config at load time. The original values are kept
+     * in window.deviceConfigOriginal for "Reset" and for the modified marker.
+     ***********************************************************************/
+    const TIMING_PARAMS = [
+        { group: 'Geolocation' },
+        { name: 'geoloc_motion_period',        unit: 's',  hint: 'Periodic geolocation in motion' },
+        { name: 'geoloc_static_period',        unit: 's',  hint: 'Periodic geolocation in static' },
+        { group: 'Messages' },
+        { name: 'core_status_period',          unit: 's',  hint: 'Status messages (LoRa + LTE), 0 = disabled', field: 'status_period_s' },
+        { name: 'lorawan_heartbeat_period',    unit: 's',  hint: 'LoRa heartbeat, 0 = disabled',               field: 'heartbeat_period_s' },
+        { group: 'Network probing' },
+        { name: 'lorawan_probe_period_static', unit: 's',  hint: 'LoRa link check in static' },
+        { name: 'lorawan_probe_period_motion', unit: 's',  hint: 'LoRa link check in motion' },
+        { name: 'cell_probe_period',           unit: 's',  hint: 'LTE probe (one uplink energy each)' },
+        { group: 'BLE scan' },
+        { name: 'ble_scan1_duration',          unit: 'ms', hint: 'BLE Scan 1 on-time per scan', bleTechno: 0x03 },
+        { name: 'ble_scan2_duration',          unit: 'ms', hint: 'BLE Scan 2 on-time per scan', bleTechno: 0x04 },
+    ];
+
+    function initTimingParams() {
+        // Group the flat list: { group } entries start a new sub-fieldset
+        const groups = [];
+        TIMING_PARAMS.forEach(p => p.group ? groups.push({ title: p.group, params: [] })
+                                           : groups[groups.length - 1].params.push(p));
+        const box = p => `
+            <div class="param-box" id="tp_box_${p.name}" title="${p.hint}">
+                <label for="tp_${p.name}"><code>${p.name.replace(/_/g, '_<wbr>')}</code></label>
+                <div class="tp-input-row">
+                    <input type="number" min="0" step="1" id="tp_${p.name}" disabled
+                           oninput="onTimingParamChange('${p.name}')">
+                    <span class="tp-unit">${p.unit}</span>
+                </div>
+                <div class="tp-hint">${p.hint}</div>
+                <div class="tp-orig" id="tp_orig_${p.name}"></div>
+            </div>`;
+        document.getElementById('timing_params_grid').innerHTML = groups.map(g => `
+            <fieldset class="flexitem" style="--n:${g.params.length}">
+                <legend>${g.title}</legend>
+                <div class="timing-group">${g.params.map(box).join('')}</div>
+            </fieldset>`).join('');
+    }
+
+    /** Called after a configuration is loaded: fill the fields and remember the originals */
+    function updateTimingParamsFromConfig(cfg) {
+        window.deviceConfigOriginal = {};
+        TIMING_PARAMS.filter(p => p.name).forEach(p => {
+            window.deviceConfigOriginal[p.name] = cfg[p.name];
+            const input = document.getElementById(`tp_${p.name}`);
+            input.disabled    = false;
+            input.value       = cfg[p.name] !== undefined ? parseFloat(cfg[p.name]) : '';
+            input.placeholder = cfg[p.name] !== undefined ? '' : 'not in config';
+            markTimingParam(p.name);
+        });
+        document.getElementById('timing_params_notice').style.display = 'none';
+        document.getElementById('timing_params_reset').disabled = false;
+    }
+
+    function onTimingParamChange(name) {
+        const cfg = window.deviceConfig;
+        if (!cfg || Object.keys(cfg).length === 0) return;
+        const p     = TIMING_PARAMS.find(x => x.name === name);
+        const v     = parseFloat(document.getElementById(`tp_${name}`).value);
+        const orig  = window.deviceConfigOriginal?.[name];
+        if (isNaN(v) || v < 0) {
+            // Empty / invalid → fall back to the configuration value
+            if (orig === undefined) delete cfg[name]; else cfg[name] = orig;
+        } else {
+            cfg[name] = String(v);
+        }
+        applyTimingParamToInterface(p, cfg[name]);
+        markTimingParam(name);
+    }
+
+    /** Sync the interface fields that were filled from the config at load time */
+    function applyTimingParamToInterface(p, rawVal) {
+        const val = parseFloat(rawVal);
+        if (p.field) {
+            document.getElementById(p.field).value = isNaN(val) ? '' : val;
+        }
+        if (p.bleTechno) {
+            const def = isNaN(val) ? TECHNO_PARAM_META.scan_dur.def : val;
+            (window.geolocProfiles || []).forEach(prof => prof.slots
+                .filter(s => s.technoCode === p.bleTechno)
+                .forEach(s => {
+                    const el = document.getElementById(`geoloc_p${prof.profileIndex}_s${s.slotIndex}_scan_dur`);
+                    if (el) el.value = def;
+                }));
+        }
+    }
+
+    /** Highlight a parameter that differs from the loaded configuration */
+    function markTimingParam(name) {
+        const cur  = window.deviceConfig?.[name];
+        const orig = window.deviceConfigOriginal?.[name];
+        const modified = parseFloat(cur) !== parseFloat(orig) && !(cur === undefined && orig === undefined);
+        document.getElementById(`tp_box_${name}`).classList.toggle('modified', modified);
+        document.getElementById(`tp_orig_${name}`).textContent = modified
+            ? `Config value: ${orig === undefined ? 'not set' : parseFloat(orig)}` : '';
+    }
+
+    function resetTimingParams() {
+        const cfg = window.deviceConfig;
+        if (!cfg || !window.deviceConfigOriginal) return;
+        TIMING_PARAMS.filter(p => p.name).forEach(p => {
+            const orig = window.deviceConfigOriginal[p.name];
+            if (orig === undefined) delete cfg[p.name]; else cfg[p.name] = orig;
+            document.getElementById(`tp_${p.name}`).value = orig !== undefined ? parseFloat(orig) : '';
+            applyTimingParamToInterface(p, orig);
+            markTimingParam(p.name);
+        });
+    }
+
+    /** Add one button per template under "Load predefined configuration" (called once on page load) */
+    function initConfigTemplates() {
+        const list = document.getElementById('config_predefined_list');
+        getConfigTemplates().forEach(t => {
+            const btn = document.createElement('button');
+            btn.type        = 'button';
+            btn.className   = 'config-predefined-btn';
+            btn.textContent = t.name;
+            btn.title       = `Load template ${t.file}`;
+            btn.onclick     = () => loadPredefinedConfig(t.text, `Template ${t.name}`, btn);
+            list.appendChild(btn);
+        });
+    }
+
+    /** Parse config text and update the interface (shared by file loader and default button) */
+    function applyDeviceConfigText(text, sourceName) {
+        const status = document.getElementById('config_status');
+        const { config: cfg, nbById, nbByName, unknownIds } = parseDeviceConfig(text);
+        const count  = Object.keys(cfg).length;
+        const format = nbById && nbByName ? 'mixed ID/name format'
+                     : nbById             ? 'ID format'
+                     :                      'name format';
+        window.deviceConfig       = cfg;
+        window.lastConfigFileName = sourceName;
+
+        status.textContent = 'Updating interface…';
+
+        // Yield to the browser so it can paint the status message,
+        // then do the heavy DOM work (innerHTML rebuild + input updates).
+        setTimeout(() => {
+            renderGeolocProfiles();
+            updateGeneralFromConfig(cfg);
+            updateTimingParamsFromConfig(cfg);
+            status.style.color = '#008293';
+            status.textContent = `Loaded: ${sourceName} — ${count} parameter(s) parsed (${format}).`;
+            if (unknownIds.length) {
+                status.style.color = '#c60';
+                status.textContent += ` Unknown parameter ID(s) ignored: ${unknownIds.join(', ')}.`;
+            }
+        }, 0);
     }
 
 
@@ -1264,7 +1622,7 @@
     fetch('hw_measurements.cfg?v=' + Date.now(), { cache: 'no-store' })
         .then(r => { if (!r.ok) throw new Error(r.status); return r.text(); })
         .then(text => {
-            const applied = applyHardwareMeasurements(parseDeviceConfig(text));
+            const applied = applyHardwareMeasurements(parseDeviceConfig(text).config);
             console.info(`[hw] ${applied} measurement(s) loaded from hw_measurements.cfg`);
         })
         .catch(err => {
@@ -1600,6 +1958,8 @@
     onNetSelectionChange(); // run on page load to set initial percentage state
 
     initTxStrategyUI();
+    initConfigTemplates();
+    initTimingParams();
 
     /***********************************************************************
      * Disk Analyser — group / component definitions
@@ -2162,7 +2522,6 @@
         const cellProbeMax    = parseFloat(cfg.cell_max_probe_attempts);
         const cellProbePeriod = parseFloat(cfg.cell_probe_period) || 0;
         const lteProbeActive  = !isNaN(cellProbeMax) && cellProbeMax !== 0 && cellProbePeriod > 0;
-        const lteProbeRaw     = lteProbeActive ? 86400 / cellProbePeriod : 0;
 
         // ── Parse core_notif_enable hex byte array e.g. "{3B,00,07,03,00,00}" ──
         const coreNotifBytes = (cfg.core_notif_enable || '')
@@ -2187,16 +2546,17 @@
         const loraProbeMotionPerDay   = loraProbeMotionRaw * motionFrac * loraFactor;
         const loraTotalPerDay         = loraStatusPerDay + loraHbPerDay + loraProbeStaticPerDay + loraProbeMotionPerDay;
 
-        const lteStatusPerDay         = statusNotifEnabled ? statusPerDayRaw * lteFactor : 0;
+        const lteUl                   = computeLteUplinksPerDay();   // shared with the cellular energy estimate
+        const lteStatusPerDay         = lteUl.status;
         const lteStatusPerTypePerDay  = numStatusTypes > 0 ? lteStatusPerDay / numStatusTypes : 0;
-        const lteProbePerDay          = lteProbeRaw * lteFactor;
+        const lteProbePerDay          = lteUl.probe;
         const lteTotalPerDay          = lteStatusPerDay + lteProbePerDay;
 
         // ── Motion notification rates ─────────────────────────────────────
         const loraMotionStartPerDay = motionStartEnabled ? tripsPerDay * loraFactor : 0;
         const loraMotionEndPerDay   = motionEndEnabled   ? tripsPerDay * loraFactor : 0;
-        const lteMotionStartPerDay  = motionStartEnabled ? tripsPerDay * lteFactor  : 0;
-        const lteMotionEndPerDay    = motionEndEnabled   ? tripsPerDay * lteFactor  : 0;
+        const lteMotionStartPerDay  = lteUl.motionStart;
+        const lteMotionEndPerDay    = lteUl.motionEnd;
         const loraNotifPerDay       = loraMotionStartPerDay + loraMotionEndPerDay;
         const lteNotifPerDay        = lteMotionStartPerDay  + lteMotionEndPerDay;
 
@@ -2310,7 +2670,7 @@
         const posTotalMotionPerDay = posScenarios ? posScenarios.reduce((s, e) => s + e.perDayMotion, 0) : 0;
         const posTotalStaticPerDay = posScenarios ? posScenarios.reduce((s, e) => s + e.perDayStatic, 0) : 0;
         const posLoraPerDay  = posTotalPerDay * loraFactor;
-        const posLtePerDay   = posTotalPerDay * lteFactor;
+        const posLtePerDay   = lteUl.position;
 
         // Display totals include position uplinks and motion notifications
         const loraDisplayTotal = loraTotalPerDay + posLoraPerDay + loraNotifPerDay;
@@ -2786,6 +3146,45 @@
     }
 
     /***********************************************************************
+     * LTE / cellular uplinks per day, by message type.
+     * Single source for both the "Uplinks by Network Technology" LTE table
+     * and the cellular energy estimate (each uplink, probes included, costs
+     * the coverage-weighted energy per uplink), so the two always agree.
+     * Every count is already scaled by the cellular usage %.
+     ***********************************************************************/
+    function computeLteUplinksPerDay() {
+        const cfg       = window.deviceConfig || {};
+        const cfgLoaded = Object.keys(cfg).length > 0;
+        const lteFactor = (parseFloat(document.getElementById('net_usage_cellular_pct').value) || 0) / 100;
+
+        // Status messages (core_notif_enable byte0 bit0)
+        const statusPeriod = parseFloat(document.getElementById('status_period_s').value) || 0;
+        const notifBytes   = (cfg.core_notif_enable || '').replace(/[{}\s]/g, '').split(',').map(s => parseInt(s, 16));
+        const notifByte0   = cfgLoaded && notifBytes.length >= 1 && !isNaN(notifBytes[0]) ? notifBytes[0] : null;
+        const notifByte3   = cfgLoaded && notifBytes.length >= 4 && !isNaN(notifBytes[3]) ? notifBytes[3] : null;
+        const statusOn     = notifByte0 !== null ? !!(notifByte0 & 0x01) : true;
+        const status       = statusOn && statusPeriod > 0 ? 86400 / statusPeriod * lteFactor : 0;
+
+        // Probing (cell_probe_period, disabled when cell_max_probe_attempts = 0), state-independent
+        const probeMax    = parseFloat(cfg.cell_max_probe_attempts);
+        const probePeriod = parseFloat(cfg.cell_probe_period) || 0;
+        const probe       = !isNaN(probeMax) && probeMax !== 0 && probePeriod > 0
+            ? 86400 / probePeriod * lteFactor : 0;
+
+        // Motion notifications (core_notif_enable byte3 bit0 / bit1), 1 per trip
+        const trips       = Math.max(0, parseFloat(document.getElementById('trips_per_day').value) || 0);
+        const motionStart = notifByte3 !== null && (notifByte3 & 0x01) ? trips * lteFactor : 0;
+        const motionEnd   = notifByte3 !== null && (notifByte3 & 0x02) ? trips * lteFactor : 0;
+
+        // Position uplinks (1 combined uplink per geoloc trigger)
+        const scen     = (cfgLoaded && window.geolocProfiles?.length > 0) ? computePositionUplinks() : null;
+        const position = scen ? scen.reduce((s, e) => s + e.perDay, 0) * lteFactor : 0;
+
+        return { status, probe, motionStart, motionEnd, position,
+                 total: status + probe + motionStart + motionEnd + position };
+    }
+
+    /***********************************************************************
      * Enumerate position uplink scenarios from active geolocation profiles.
      *
      * One uplink is sent per profile trigger. Its payload depends on which
@@ -3004,7 +3403,11 @@
             net_usage_cellular_pct: parseFloat(document.getElementById('net_usage_cellular_pct').value) || 0,
             cellular: (function() {
                 const isCombo = document.getElementById('product').value === 'combo_tracker';
+                const cfgLoaded = Object.keys(window.deviceConfig || {}).length > 0;
                 return {
+                    // Same count as the LTE uplinks table (status + probes + motion notifs + positions).
+                    // Without a config, the engine falls back to its own message sum.
+                    uplinks_per_day: cfgLoaded ? computeLteUplinksPerDay().total : undefined,
                     coverage_pct: {
                         excellent: isCombo ? (parseFloat(document.getElementById('cell_cov_excellent').value) || 0) : 0,
                         good:      isCombo ? (parseFloat(document.getElementById('cell_cov_good').value)      || 0) : 0,
@@ -3061,12 +3464,20 @@
             const txStratRaw = parseInt(cfg.lorawan_s1_tx_strategy);
             if (isNaN(txStratRaw)) return;
             const byte0 = txStratRaw & 0xFF;
+            const byte1 = (txStratRaw >> 8)  & 0xFF;
             const byte2 = (txStratRaw >> 16) & 0xFF;
             const dS = (byte0 & 0x02) ? 1 : 0;
             const dM = (byte0 & 0x04) ? 1 : 0;
             const _mp = parseFloat(document.getElementById('motion_pct').value);
             const mFrac = (isNaN(_mp) ? 50 : _mp) / 100;
             input.lora_tx2_factor = (1 - mFrac) * dS + mFrac * dM;
+            // TX1 in motion always uses the byte 1 mask (ADR applies to static only)
+            input.lora_motion_frac = mFrac;
+            const active1 = [];
+            for (let i = 0; i < 8; i++) if (byte1 & (1 << i)) active1.push(i);
+            if (active1.length > 0) {
+                input.lora_tx1_motion_dr_distribution = active1.map(dr => ({ dr, pct: 100 / active1.length }));
+            }
             // Motion notification TX2: start → entering motion (dM), end → entering static (dS)
             input.motion_notifications.tx2_factor_start = dM;
             input.motion_notifications.tx2_factor_end   = dS;
@@ -3408,6 +3819,36 @@
         const fmtI   = n => Math.round(n).toLocaleString();
         const mPct   = document.getElementById('motion_pct').value;
         const sPct   = document.getElementById('static_pct').value;
+
+        // Network usage inputs (LoRa usage [%] / Cellular usage [%]) used for this result
+        const netSelEl    = document.getElementById('net_selection');
+        const netModeName = netSelEl.options[netSelEl.selectedIndex]?.text ?? '—';
+        const netLoraPct  = input.net_usage_lora_pct     ?? 0;
+        const netCellPct  = input.net_usage_cellular_pct ?? 0;
+
+        // Network section rows: [label, value, label, value], alternating fill.
+        // LoRa rows only when LoRa is used, cellular coverage only when cellular is used.
+        const cov = input.cellular?.coverage_pct;
+        const netPairs = [
+            ['Network mode', netModeName, 'Network usage', `LoRa ${netLoraPct}%  /  Cellular ${netCellPct}%`],
+        ];
+        if (netLoraPct > 0) {
+            netPairs.push(['LoRa TX power', `${input.tx_power} dBm`, 'LoRa DR distribution', result.lora.dr_sf_str]);
+        }
+        if (netCellPct > 0 && cov) {
+            netPairs.push(['Cellular coverage',
+                           `Excellent ${cov.excellent}%  /  Good ${cov.good}%  /  Bad ${cov.bad}%`,
+                           '', '']);
+        }
+        const networkRows = netPairs.map((p, i) => {
+            const fill = i % 2 === 0 ? { fillColor: '#f4fbfc' } : {};
+            return [
+                { text: p[0], bold: true, fontSize: 7, color: '#555', margin: [6,4,4,4], ...fill },
+                { text: p[1], fontSize: 7, margin: [4,4,6,4], ...fill },
+                { text: p[2], bold: true, fontSize: 7, color: '#555', margin: [6,4,4,4], ...fill },
+                { text: p[3], fontSize: 7, margin: [4,4,6,4], ...fill },
+            ];
+        });
 
         // ── Disk image renderer: clean donut → PNG data URL ──────────────
         function renderDisk(items, SIZE = 240) {
@@ -4021,7 +4462,7 @@
                 },
 
                 // ── Configuration ────────────────────────────────────────
-                sectionHeader('Configuration'),
+                sectionHeader('Device & Battery'),
                 {
                     table: {
                         widths: [80, '*', 80, '*'],
@@ -4044,13 +4485,21 @@
                                 { text: 'Annual loss',        bold: true, fontSize: 7, color: '#555', fillColor: '#f4fbfc', margin: [6,4,4,4] },
                                 { text: `${result.battery.annual_discharge_mah} mAh/yr`, fontSize: 7, fillColor: '#f4fbfc', margin: [4,4,6,4] },
                             ],
-                            [
-                                { text: 'DR distribution',   bold: true, fontSize: 7, color: '#555', margin: [6,4,4,4] },
-                                { text: result.lora.dr_sf_str, fontSize: 7, margin: [4,4,6,4] },
-                                { text: 'LoRa TX Power',     bold: true, fontSize: 7, color: '#555', margin: [6,4,4,4] },
-                                { text: `${input.tx_power} dBm`, fontSize: 7, margin: [4,4,6,4] },
-                            ],
                         ],
+                    },
+                    layout: {
+                        hLineWidth: () => 0.5, vLineWidth: () => 0,
+                        hLineColor: () => '#d0eef2',
+                    },
+                    margin: [0, 0, 0, 4],
+                },
+
+                // ── Network ──────────────────────────────────────────────
+                sectionHeader('Network'),
+                {
+                    table: {
+                        widths: [80, '*', 80, '*'],
+                        body: networkRows,
                     },
                     layout: {
                         hLineWidth: () => 0.5, vLineWidth: () => 0,
