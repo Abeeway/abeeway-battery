@@ -31,9 +31,11 @@ jobs:
       - name: Prepare site
         shell: bash
         run: |
+          node build_config_templates.js
           mkdir -p site
           cp abeeway_battery.html site/index.html
           cp abeeway_battery.js site/
+          cp config_templates.js site/
           cp README.md LICENSE site/
 
       - name: Upload artifact
