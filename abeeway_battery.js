@@ -2,6 +2,14 @@
 /***** BATTERY LIFE CALCULATION SCRIPTS                          *****/
 /*********************************************************************/
 
+/* ─────────────────────────────────────────────────────────────────
+ * TOOL VERSION — MAJOR.MINOR.PATCH (history in CHANGELOG.md)
+ *   MAJOR : model structure changes
+ *   MINOR : estimates change (constants, formulas)
+ *   PATCH : display / UI only, estimates unchanged
+ * ──────────────────────────────────────────────────────────────── */
+const TOOL_VERSION = '1.0.0';
+
 
 /* ─────────────────────────────────────────────────────────────────
  * HARDWARE MEASUREMENTS
@@ -21,7 +29,11 @@ let HW = {
 
     // LoRa (SX1262)
     lora_rx_current_ma:         8,     // RX window current (I_RX)
-    lora_rx_window_ms:          300,    // duration of each RX window (T_RX)
+    lora_startup_time_ms:       50,    // radio startup before each TX (not part of time on air) — measured
+    lora_startup_current_ma:    4,     // current during radio startup — measured
+    // RX window length = preamble-detection timeout at the window's SF (see lora_rx_window_ms())
+    lora_rx_min_symbols:        2,     // minimum symbols to detect a preamble (2: matches Joulescope RX2 @ SF12 ≈ 68 ms)
+    lora_rx_error_ms:           10,    // max timing error on window opening (± clock drift) [ms]
 
     // GNSS / GPS
     gnss_active_current_ma:     30,    // GNSS chipset active current (standalone fix)
@@ -232,8 +244,16 @@ const AGPS_MIN_PAYL_LEN               = GEOLOC_HDR + 6;   // 14
 const AGPS_ADDITIONAL_SAT_PAYL_LEN   = 5;
 const WIFI_MIN_PAYL_LEN               = GEOLOC_HDR;       // 8 (7 bytes/BSSID, no tech-specific minimum)
 const WIFI_ADDITIONAL_BSSID_PAYL_LEN  = 7;
-const BLE_MIN_PAYL_LEN                = GEOLOC_HDR;       // 8 (7 bytes/beacon, no tech-specific minimum)
-const BLE_ADDITIONAL_BSSID_PAYL_LEN   = 7;
+const BLE_RSSI_PAYL_LEN               = 1;  // RSSI byte reported with each beacon
+const BLE_MIN_PAYL_LEN                = GEOLOC_HDR;       // 8 (no tech-specific minimum)
+const BLE_ADDITIONAL_BSSID_PAYL_LEN   = 7 + BLE_RSSI_PAYL_LEN;  // default bytes per beacon (report type 0) = 8
+// Bytes per reported beacon from ble_scanX_report_type = ID length + 1 B RSSI:
+//   0 → 7 + 1 = 8 B,  1 → 2 + 1 = 3 B,  2 → 16 + 1 = 17 B
+function bleIdBytes(report_type) {
+    const rt = parseInt(report_type);
+    const id_len = rt === 1 ? 2 : rt === 2 ? 16 : 7;
+    return id_len + BLE_RSSI_PAYL_LEN;
+}
 const RECOVERY_BEACON_MAH             = 0.00036;  // energy per single beacon transmission [mAh]
 const LORA_PROBE_ENERGY_MAH           = 0.006;    // energy per single LoRa link-check (probe) [mAh]
 
@@ -570,10 +590,6 @@ function configKeyToName(key) {
     return name ? { name, isId: true, known: true } : { name: key, isId: true, known: false };
 }
 
-const SCANCOLL_MIN_PAYL_LEN                  = 8;
-const SCANCOLL_ADDITIONAL_MACADDR_PAYL_LEN   = 7;
-const SCANCOLL_ADDITIONAL_BEACONID_PAYL_LEN  = 4;
-
 
 /* ─────────────────────────────────────────────────────────────────
  * CALCULATION FUNCTIONS
@@ -589,24 +605,33 @@ const SCANCOLL_ADDITIONAL_BEACONID_PAYL_LEN  = 4;
 //     where PL = payload_bytes + 13 (LoRaWAN MAC overhead:
 //                MHDR(1) + DevAddr(4) + FCtrl(1) + FCnt(2) + FPort(1) + MIC(4))
 //   T_payload    = n_payload × T_sym
-//   T_packet     = T_preamble + T_payload
-//   T_radio_startup = Radio startup time [ms]
+//   T_packet     = T_preamble + T_payload   (pure time on air, no startup)
+//
+// Radio startup (before each TX): T_startup = HW.lora_startup_time_ms (50 ms, measured)
+//   at I_startup = HW.lora_startup_current_ma (4 mA, measured), not at TX current
+//
+// RX windows (Class A, no downlink assumed → each window only waits for a preamble):
+//   RX1 modulation = TX modulation (RX1DROffset = 0)
+//   RX2 modulation = SF12 / 125 kHz (always)
+//   T_win = max(N_min, ⌈((2×N_min − 8)×T_sym + 2×T_err) / T_sym⌉) × T_sym
+//     N_min = HW.lora_rx_min_symbols (2), T_err = HW.lora_rx_error_ms (10 ms)
+//     FSK: T_sym = 8 / kbps (one byte)
 //
 // Energy per uplink [mJ]:
 //   E_TX  = T_packet [ms] × V [V] × I_TX(dBm, product) [mA]  / 1000
-//   E_RX  = 2 × T_RX [ms] × V [V] × I_RX [mA]  / 1000   (RX1 + RX2 windows)
+//   E_RX  = (T_win(RX1) + T_win(RX2)) [ms] × V [V] × I_RX [mA]  / 1000
+//   E_SU  = T_startup [ms] × V [V] × I_startup [mA]  / 1000
 //   Note: I_TX already includes MCU active current (measured with MCU running)
 //
-// Average current [mA] = (E_TX + E_RX) / V × N_msg_per_day / 86400
+// Average current [mA] = (E_TX + E_RX + E_SU) / V × N_msg_per_day / 86400
 //
 // FSK DRs (e.g. EU868 DR7, 50 kbps): ToA = (5 preamble + 3 sync + 1 length + PL + 2 CRC) bytes × 8 / kbps
 //
 // `sf` may be a number (LoRa, 125 kHz) or a modulation from LORAWAN_DR_TABLE ({sf, bw} or {fsk}).
 function lora_time_on_air_ms(mod, payl_len) {
-    const T_radio_startup = 80;                           // Radio startup time [ms]
     const PL = payl_len + 13;                             // total PHY bytes incl. LoRaWAN overhead
     if (mod.fsk) {
-        return T_radio_startup + (5 + 3 + 1 + PL + 2) * 8 / mod.fsk;
+        return (5 + 3 + 1 + PL + 2) * 8 / mod.fsk;
     }
     const sf         = mod.sf;
     const T_sym      = (2 ** sf) / (mod.bw || 125);       // symbol period [ms]
@@ -614,7 +639,21 @@ function lora_time_on_air_ms(mod, payl_len) {
     const DE         = T_sym >= 16 ? 1 : 0;
     const n_payload  = 8 + Math.max(
         Math.ceil((8 * PL - 4 * sf + 44) / (4 * (sf - 2 * DE))) * 5, 0);
-    return T_radio_startup + T_preamble + n_payload * T_sym;
+    return T_preamble + n_payload * T_sym;
+}
+
+// RX2 always uses SF12 / 125 kHz
+const LORA_RX2_MOD = { sf: 12, bw: 125 };
+
+// RX window duration [ms] for a modulation ({sf, bw} or {fsk}): time the radio
+// stays in RX to detect a preamble before timing out (no downlink).
+function lora_rx_window_ms(mod) {
+    const T_sym = mod.fsk ? 8 / mod.fsk                    // FSK: one byte [ms]
+                          : (2 ** mod.sf) / (mod.bw || 125);
+    const N_min = HW.lora_rx_min_symbols;
+    const n_sym = Math.max(N_min,
+        Math.ceil(((2 * N_min - 8) * T_sym + 2 * HW.lora_rx_error_ms) / T_sym));
+    return n_sym * T_sym;
 }
 
 function calculate_lora_current(sf, tx_power, payl_len, nof_msg_per_day, product) {
@@ -622,9 +661,13 @@ function calculate_lora_current(sf, tx_power, payl_len, nof_msg_per_day, product
     const T_packet   = lora_time_on_air_ms(mod, payl_len);  // time on air [ms]
 
     const E_TX = T_packet * HW.supply_voltage * getTxCurrentMa(tx_power, product) / 1000;
-    const E_RX = 2 * HW.lora_rx_window_ms * HW.supply_voltage * HW.lora_rx_current_ma / 1000;
+    // RX1 at the TX modulation, RX2 at SF12
+    const T_rx = lora_rx_window_ms(mod) + lora_rx_window_ms(LORA_RX2_MOD);
+    const E_RX = T_rx * HW.supply_voltage * HW.lora_rx_current_ma / 1000;
+    // Radio startup before the TX, at startup current (not TX current)
+    const E_SU = HW.lora_startup_time_ms * HW.supply_voltage * HW.lora_startup_current_ma / 1000;
 
-    return ((E_TX + E_RX) / HW.supply_voltage) * (nof_msg_per_day / (24 * 3600));
+    return ((E_TX + E_RX + E_SU) / HW.supply_voltage) * (nof_msg_per_day / (24 * 3600));
 }
 
 // DR-distribution-weighted LoRa current.
@@ -669,12 +712,6 @@ function calculate_ble_current(nof_msg_per_day, scan_duration_s) {
         ? scan_duration_s
         : HW.ble_scan_duration_s;
     return dur * HW.ble_scan_current_ma * nof_msg_per_day / (24 * 3600);
-}
-
-function calculate_scancollection_current(nof_msg_per_day, tech) {
-    if (tech === 'WiFi') return calculate_wifi_current(nof_msg_per_day);
-    if (tech === 'BLE')  return calculate_ble_current(nof_msg_per_day);
-    return 0;
 }
 
 function calculate_custom_ble_usage_current(operation, usage_time_per_day) {
@@ -809,9 +846,12 @@ function calculate_battery_life_time(input) {
 
   Energy per uplink [mJ]:
     E_TX  = T_packet [ms] × V [V] × I_TX(dBm, product) [mA]  / 1000   (I_TX includes MCU)
-    E_RX  = 2 × ${HW.lora_rx_window_ms} ms × ${HW.lora_rx_current_ma} mA × V [V]  / 1000   (RX1 + RX2)
+    E_RX  = (T_win(RX1) + T_win(RX2)) × ${HW.lora_rx_current_ma} mA × V [V]  / 1000
+            RX1 at the TX SF/BW, RX2 at SF12/125 kHz (${lora_rx_window_ms(LORA_RX2_MOD).toFixed(1)} ms)
+            T_win = max(${HW.lora_rx_min_symbols}, ⌈((2×${HW.lora_rx_min_symbols} − 8)×T_sym + 2×${HW.lora_rx_error_ms} ms) / T_sym⌉) × T_sym
+    E_SU  = ${HW.lora_startup_time_ms} ms × ${HW.lora_startup_current_ma} mA × V [V]  / 1000   (radio startup before each TX)
 
-  Average current [mA] = (E_TX + E_RX) / V × N_msg/day / 86400`);
+  Average current [mA] = (E_TX + E_RX + E_SU) / V × N_msg/day / 86400`);
 
     // LoRa currents (TX1 + TX2, scaled by lora_factor)
     const custom_msg_lora_current =
@@ -846,38 +886,46 @@ function calculate_battery_life_time(input) {
        + loraCalcTx2(wifi_payl, input.wifi.nof_msg_per_day)) * lora_factor;
 
     // BLE geoloc LoRa uplinks — BLE Scan 1 and BLE Scan 2 tracked separately
+    // Bytes per beacon (ID + RSSI) come from ble_scanX_report_type (id_bytes); 8 B when not given
     const ble1_payl = input.ble.ble1
-        ? BLE_MIN_PAYL_LEN + input.ble.ble1.nof_beaconid * BLE_ADDITIONAL_BSSID_PAYL_LEN
+        ? BLE_MIN_PAYL_LEN + input.ble.ble1.nof_beaconid * (input.ble.ble1.id_bytes ?? BLE_ADDITIONAL_BSSID_PAYL_LEN)
         : BLE_MIN_PAYL_LEN + input.ble.nof_beaconid * BLE_ADDITIONAL_BSSID_PAYL_LEN;
     const ble1_nof = input.ble.ble1 ? input.ble.ble1.nof_msg_per_day : input.ble.nof_msg_per_day;
     const ble1_lora = (loraCalc(ble1_payl, ble1_nof) + loraCalcTx2(ble1_payl, ble1_nof)) * lora_factor;
 
     const ble2_lora = input.ble.ble2
         ? (() => {
-            const p = BLE_MIN_PAYL_LEN + input.ble.ble2.nof_beaconid * BLE_ADDITIONAL_BSSID_PAYL_LEN;
+            const p = BLE_MIN_PAYL_LEN + input.ble.ble2.nof_beaconid * (input.ble.ble2.id_bytes ?? BLE_ADDITIONAL_BSSID_PAYL_LEN);
             const n = input.ble.ble2.nof_msg_per_day;
             return (loraCalc(p, n) + loraCalcTx2(p, n)) * lora_factor;
           })()
         : 0;
     const ble_lora_current = ble1_lora + ble2_lora;
 
-    // Scan collection (fragmented)
-    const scancoll_unit_len = (input.scan_collection.tech === 'BLE' && input.scan_collection.idtype === 'ID')
-        ? SCANCOLL_ADDITIONAL_BEACONID_PAYL_LEN
-        : SCANCOLL_ADDITIONAL_MACADDR_PAYL_LEN;
-
-    const nof_id_in_full_msg = Math.floor((input.scan_collection.max_payl_len - SCANCOLL_MIN_PAYL_LEN) / scancoll_unit_len);
-    const nof_id_last_msg    = input.scan_collection.nof_id % nof_id_in_full_msg;
-    const nof_full_fragments = Math.floor(input.scan_collection.nof_id / nof_id_in_full_msg);
-
-    const sc_full_payl = SCANCOLL_MIN_PAYL_LEN + nof_id_in_full_msg * scancoll_unit_len;
-    const sc_last_payl = SCANCOLL_MIN_PAYL_LEN + nof_id_last_msg * scancoll_unit_len;
-    const sc_full_nof  = nof_full_fragments * input.scan_collection.nof_msg_per_day;
-    const sc_last_nof  = input.scan_collection.nof_msg_per_day;
-    const scan_collection_lora_current = (
-        loraCalc(sc_full_payl, sc_full_nof) + loraCalcTx2(sc_full_payl, sc_full_nof) +
-        loraCalc(sc_last_payl, sc_last_nof) + loraCalcTx2(sc_last_payl, sc_last_nof)
-    ) * lora_factor;
+    // Position uplinks — one combined uplink per geoloc trigger (design.txt rule).
+    // When the page passes the geoloc scenarios (profile mode), each scenario is charged once
+    // per trigger at its combined payload length, e.g. "BLE Scan 1(failure) + WiFi(success)",
+    // and the per-techno uplinks above are NOT charged. TX1 DR and TX2 follow the state the
+    // trigger fired in: motion (in-motion periodic, motion start) or static (static periodic,
+    // motion end). Manual mode (no scenarios) keeps the per-techno uplinks.
+    //   input.position_uplinks = { scenarios: [{ label, payl_len, motion_per_day, static_per_day }],
+    //                              tx2_factor_static, tx2_factor_motion }
+    const pos_in        = input.position_uplinks;
+    const pos_scenarios = Array.isArray(pos_in?.scenarios) ? pos_in.scenarios : null;
+    const tx2CalcWith   = factor => factor > 0
+        ? (pl, n) => (tx2_dr_dist
+            ? calculate_lora_current_dr_weighted(input.tx_power, pl, n * factor, tx2_dr_dist, region, product)
+            : calculate_lora_current(input.sf ?? 10, input.tx_power, pl, n * factor, product))
+        : () => 0;
+    const posTx2Static = tx2CalcWith(pos_in?.tx2_factor_static ?? 0);
+    const posTx2Motion = tx2CalcWith(pos_in?.tx2_factor_motion ?? 0);
+    const position_lora_current = pos_scenarios
+        ? pos_scenarios.reduce((sum, sc) => {
+            const pl = sc.payl_len, nM = sc.motion_per_day || 0, nS = sc.static_per_day || 0;
+            return sum + (loraCalcMotion(pl, nM) + posTx2Motion(pl, nM)
+                        + loraCalcStatic(pl, nS) + posTx2Static(pl, nS)) * lora_factor;
+          }, 0)
+        : gps_lora_current + lpgps_lora_current + agps_lora_current + wifi_lora_current + ble_lora_current;
 
     // Geolocation HW currents
     // Profile mode: gnss_current_ma is pre-computed (failure model + motion/static split).
@@ -900,9 +948,6 @@ function calculate_battery_life_time(input) {
     // BLE custom usage
     const custom_ble_usage_current = calculate_custom_ble_usage_current(
         input.custom_ble.operation, input.custom_ble.usage_time_per_day
-    );
-    const scan_collection_current = calculate_scancollection_current(
-        input.scan_collection.nof_msg_per_day, input.scan_collection.tech
     );
 
     // System
@@ -983,13 +1028,14 @@ function calculate_battery_life_time(input) {
     const geoloc_total   = gps_geoloc_current + lpgps_geoloc_current + agps_geoloc_current + wifi_geoloc_current + ble_geoloc_current;
     const cellular_total = cellular_current;
     const lora_total     = custom_msg_lora_current + heartbeat_lora_current + status_lora_current
-                         + scan_collection_lora_current + custom_ble_usage_current + scan_collection_current
-                         + gps_lora_current + lpgps_lora_current + agps_lora_current + wifi_lora_current + ble_lora_current
+                         + position_lora_current
                          + lora_probe_current
                          + motion_start_lora_current + motion_end_lora_current;
     const beacon_total   = recovery_beacon_current;
+    // BLE radio usage (advertising / connection / scan) — no LoRa TX, own group
+    const ble_total      = custom_ble_usage_current;
 
-    const total_current = cpu_total + geoloc_total + cellular_total + lora_total + beacon_total;
+    const total_current = cpu_total + geoloc_total + cellular_total + lora_total + beacon_total + ble_total;
 
     // Lifetime uses the usable portion of the battery; self-discharge already accounts for total.
     const usable_mah = input.usable_capacity_mah ?? input.battery_capacity_mah;
@@ -1012,9 +1058,9 @@ function calculate_battery_life_time(input) {
         cellular:             cellular_current,
         lora_heartbeat:       heartbeat_lora_current,
         lora_status_msg:      status_lora_current,
+        lora_position:        position_lora_current,   // combined geoloc uplinks (or per-techno in manual mode)
         lora_custom_msg:      custom_msg_lora_current,
-        lora_scan_collection: scan_collection_lora_current + scan_collection_current,
-        lora_custom_ble:      custom_ble_usage_current,
+        ble_custom:           custom_ble_usage_current,
         lora_probe:           lora_probe_current,
         lora_motion_start:    motion_start_lora_current,
         lora_motion_end:      motion_end_lora_current,
@@ -1034,9 +1080,11 @@ function calculate_battery_life_time(input) {
         lora:            lora_total,
         network:         cellular_total + lora_total,
         recovery_beacon: beacon_total,
+        ble:             ble_total,
     };
 
     return {
+        tool_version: TOOL_VERSION,
         battery_life_days,
         total_current_ma:  total_current,
         components_ma:     components,
@@ -1060,6 +1108,7 @@ function calculate_battery_life_time(input) {
 
 if (typeof module !== 'undefined') {
     module.exports = {
+        TOOL_VERSION,
         calculate_battery_life_time,
         calculate_lora_current,
         calculate_lora_current_dr_weighted,
@@ -1071,6 +1120,8 @@ if (typeof module !== 'undefined') {
         LORAWAN_DR_TABLE,
         loraDrLabel,
         lora_time_on_air_ms,
+        lora_rx_window_ms,
+        bleIdBytes,
         LORA_TX_CURRENT_MA,
         CELLULAR_ENERGY_PER_UPLINK_MAH,
         LORA_PROBE_ENERGY_MAH,
