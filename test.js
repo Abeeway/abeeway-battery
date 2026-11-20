@@ -47,13 +47,6 @@ let input = {
         usage_time_per_day: 0,
         operation: 'fast_adv',         // fast_adv|slow_adv|connected|fast_scan|slow_scan
     },
-    scan_collection: {
-        nof_msg_per_day: 0,
-        tech: 'BLE',                   // BLE|WiFi
-        idtype: 'MAC',                 // MAC|ID
-        max_payl_len: 92,              // 36|92
-        nof_id: 8,
-    },
     cellular: {
         tech: 'ltem',                  // ltem|nbiot|'' (disabled)
         sessions_per_day: 24,
