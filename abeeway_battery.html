@@ -688,7 +688,9 @@
                 <label for="product">Product type:</label><br />
                 <select id="product" onchange="onProductChange()">
                     <option value="compact" selected>Compact Tracker</option>
+                    <option value="compact_xl">Compact XL Tracker</option>
                     <option value="combo_tracker">Combo Tracker</option>
+                    <option value="smart_badge">Smart Badge</option>
                 </select>
             </fieldset>
 
@@ -702,8 +704,8 @@
                 <div id="config_predefined_list" class="config-predefined-list">
                     <button type="button" class="config-predefined-btn" id="config_default_btn"
                             onclick="loadDefaultConfig()"
-                            title="Load the default AT3 configuration">
-                        Default configuration
+                            title="Load the default factory AT3 configuration">
+                        Default Factory Configuration
                     </button>
                 </div>
 
@@ -729,16 +731,18 @@
             <fieldset class="flexitem">
                 <legend>Battery Characteristics</legend>
                 <label for="battery_capacity_mah">Battery capacity [mAh]:</label><br />
-                <input type="number" min="1" id="battery_capacity_mah" value="1300"
+                <input type="number" min="1" id="battery_capacity_mah" value="8000"
                        oninput="onBatteryCapacityChange()"><br />
                 <label for="battery_usable_pct" style="margin-top:6px; display:block;">Usable capacity [%]:</label>
                 <input type="number" min="1" max="100" step="1" id="battery_usable_pct" value="80"
                        oninput="onBatteryCapacityChange()"><br />
                 <small style="color:#666;">
-                    Usable capacity = <strong id="usable_capacity_display">1040</strong> mAh
+                    Usable capacity = <strong id="usable_capacity_display">6400</strong> mAh
                     (lifetime estimation). Self-discharge applies to the full battery capacity.
                 </small>
                 <hr />
+                <!-- Primary batteries (all products but the Smart Badge): annual rate by environment -->
+                <div id="annual_discharge_block">
                 <label for="discharge_profile">Deployment environment:</label><br />
                 <select id="discharge_profile" onchange="onDischargeProfileChange()">
                     <option value="0.8">Cold climate — Arctic / Nordic  [-20 °C to +10 °C]  (0.8 % / yr)</option>
@@ -755,6 +759,15 @@
                     Based on temperature-weighted discharge model.
                     Select "Custom" to enter a value manually.
                 </small>
+                </div>
+                <!-- Rechargeable Li-Po (Smart Badge): monthly rate, the annual rate does not apply -->
+                <div id="monthly_discharge_block" style="display:none;">
+                <label for="monthly_discharge_pct">Rechargeable Li-Po battery — monthly self-discharge [%]:</label><br />
+                <input type="number" id="monthly_discharge_pct" min="0" max="100" step="0.1" value="2"><br />
+                <small style="color:#666;">
+                    Default 2 %/month (e.g. 1300 mAh → 26 mAh/month ≈ 36 µA leakage).
+                </small>
+                </div>
             </fieldset>
 
         </div>
@@ -1172,7 +1185,7 @@
                 </div>
                 <div class="kpi-card">
                     <div class="kpi-value" id="kpi_annual_discharge_mah">—</div>
-                    <div class="kpi-unit">mAh / year</div>
+                    <div class="kpi-unit" id="kpi_discharge_unit">mAh / year</div>
                     <div class="kpi-label">Self-Discharge Loss</div>
                 </div>
             </div>
@@ -1406,9 +1419,9 @@
             .forEach(b => b.classList.toggle('active', b === btn));
     }
 
-    /** "Default configuration" button: loads DEFAULT_DEVICE_CONFIG_TEXT */
+    /** "Default Factory Configuration" button: loads DEFAULT_DEVICE_CONFIG_TEXT */
     function loadDefaultConfig() {
-        loadPredefinedConfig(DEFAULT_DEVICE_CONFIG_TEXT, 'Default configuration',
+        loadPredefinedConfig(DEFAULT_DEVICE_CONFIG_TEXT, 'Default Factory Configuration',
                              document.getElementById('config_default_btn'));
     }
 
@@ -2078,13 +2091,23 @@
      ***********************************************************************/
     function onProductChange() {
         const isCombo   = document.getElementById('product').value === 'combo_tracker';
-        const isCompact = document.getElementById('product').value === 'compact';
+        const product   = document.getElementById('product').value;
+        const prodDef   = PRODUCTS[product] ?? PRODUCTS.compact;
+        const isCompact = !!prodDef.lora_only;   // compact, compact XL, smart badge: LoRa only
         const inputs    = document.getElementById('cellular_inputs');
         const notice    = document.getElementById('cellular_locked_notice');
         const netSelFS  = document.getElementById('network_selection_fieldset');
         const cellFS    = document.getElementById('cellular_fieldset');
 
-        // For the Compact Tracker, LoRa is the only network — hide both network sections
+        // Battery defaults per product (capacity, usable %, discharge basis)
+        document.getElementById('battery_capacity_mah').value = prodDef.battery.nominal_capacity;
+        document.getElementById('battery_usable_pct').value   = prodDef.battery.usable_pct;
+        onBatteryCapacityChange();
+        const monthlyDischarge = BATTERY_TYPES[prodDef.battery.type]?.discharge_basis === 'monthly';
+        document.getElementById('annual_discharge_block').style.display  = monthlyDischarge ? 'none' : '';
+        document.getElementById('monthly_discharge_block').style.display = monthlyDischarge ? '' : 'none';
+
+        // For LoRa-only products (compact, compact XL, smart badge), LoRa is the only network — hide both network sections
         // and force LoRa-only mode internally. For all other products, show them.
         if (isCompact) {
             netSelFS.style.display = 'none';
@@ -3506,6 +3529,9 @@
             usable_capacity_mah:   (parseFloat(document.getElementById('battery_capacity_mah').value) || 1300)
                                  * (parseFloat(document.getElementById('battery_usable_pct').value)   || 80) / 100,
             annual_discharge_pct:  parseFloat(document.getElementById('annual_discharge_pct').value) || 2.4,
+            // Smart Badge (rechargeable Li-Po): monthly rate replaces the annual one in the engine
+            monthly_discharge_pct: BATTERY_TYPES[(PRODUCTS[document.getElementById('product').value] ?? PRODUCTS.compact).battery.type]?.discharge_basis === 'monthly'
+                ? (parseFloat(document.getElementById('monthly_discharge_pct').value) || 0) : undefined,
             cpu_idle_ua: parseFloat(document.getElementById('cpu_idle_ua').value) || 0,
 
             monitoring: {
@@ -3718,7 +3744,10 @@
         document.getElementById('kpi_days').textContent     = result.battery_life_days.toLocaleString();
         document.getElementById('kpi_years').textContent    = (result.battery_life_days / 365).toFixed(2);
         document.getElementById('kpi_capacity').textContent             = Math.round(result.battery.capacity_mah);
-        document.getElementById('kpi_annual_discharge_mah').textContent = result.battery.annual_discharge_mah;
+        const monthlyDis = result.battery.discharge_basis === 'monthly';
+        document.getElementById('kpi_annual_discharge_mah').textContent = monthlyDis
+            ? result.battery.monthly_discharge_mah : result.battery.annual_discharge_mah;
+        document.getElementById('kpi_discharge_unit').textContent = monthlyDis ? 'mAh / month' : 'mAh / year';
 
         // ── Build group-level doughnut chart ─────────────────────────────
         const diskData = [], diskColors = [], diskLabels = [];
@@ -4024,6 +4053,7 @@
         const productEl   = document.getElementById('product');
         const productName = productEl.options[productEl.selectedIndex].text;
         const configFile  = window.lastConfigFileName || 'Manual configuration';
+        const monthlyDis  = result.battery.discharge_basis === 'monthly';
 
         const TEAL   = '#008293';
         const fmt    = n => n.toLocaleString(undefined, { maximumFractionDigits: 1 });
@@ -4694,13 +4724,16 @@
                                 { text: 'Battery capacity',  bold: true, fontSize: 7, color: '#555', margin: [6,4,4,4] },
                                 { text: `${input.battery_capacity_mah} mAh`, fontSize: 7, margin: [4,4,6,4] },
                                 { text: 'Self-discharge',    bold: true, fontSize: 7, color: '#555', margin: [6,4,4,4] },
-                                { text: `${input.annual_discharge_pct} %/yr  (on full capacity)`, fontSize: 7, margin: [4,4,6,4] },
+                                { text: monthlyDis
+                                        ? `${result.battery.monthly_discharge_pct} %/month  (Li-Po, on full capacity)`
+                                        : `${input.annual_discharge_pct} %/yr  (on full capacity)`, fontSize: 7, margin: [4,4,6,4] },
                             ],
                             [
                                 { text: 'Usable capacity',   bold: true, fontSize: 7, color: '#555', fillColor: '#f4fbfc', margin: [6,4,4,4] },
-                                { text: `${input.usable_pct ?? 100}%  →  ${Math.round(result.battery.capacity_mah)} mAh`, fontSize: 7, bold: true, color: TEAL, fillColor: '#f4fbfc', margin: [4,4,6,4] },
-                                { text: 'Annual loss',        bold: true, fontSize: 7, color: '#555', fillColor: '#f4fbfc', margin: [6,4,4,4] },
-                                { text: `${result.battery.annual_discharge_mah} mAh/yr`, fontSize: 7, fillColor: '#f4fbfc', margin: [4,4,6,4] },
+                                { text: `${input.usable_pct ?? 100}% = ${Math.round(result.battery.capacity_mah)} mAh`, fontSize: 7, bold: true, color: TEAL, fillColor: '#f4fbfc', margin: [4,4,6,4] },
+                                { text: monthlyDis ? 'Monthly loss' : 'Annual loss', bold: true, fontSize: 7, color: '#555', fillColor: '#f4fbfc', margin: [6,4,4,4] },
+                                { text: monthlyDis ? `${result.battery.monthly_discharge_mah} mAh/month`
+                                                   : `${result.battery.annual_discharge_mah} mAh/yr`, fontSize: 7, fillColor: '#f4fbfc', margin: [4,4,6,4] },
                             ],
                         ],
                     },
@@ -4732,7 +4765,8 @@
                     kpiCard((result.battery_life_days/365).toFixed(2),     'years',  'Battery Life'),
                     kpiCard(Math.round(result.battery.total_capacity_mah), 'mAh',    'Battery Capacity'),
                     kpiCard(`${Math.round(result.battery.capacity_mah)} (${result.battery.usable_pct}%)`, 'mAh', 'Usable Capacity'),
-                    kpiCard(result.battery.annual_discharge_mah,           'mAh/yr', 'Self-Discharge'),
+                    kpiCard(monthlyDis ? result.battery.monthly_discharge_mah : result.battery.annual_discharge_mah,
+                            monthlyDis ? 'mAh/month' : 'mAh/yr', 'Self-Discharge'),
                     kpiCard((result.total_current_ma * 1000).toFixed(1), 'µA',    'Avg. Current'),
                 ]),
 

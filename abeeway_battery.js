@@ -105,9 +105,13 @@ const SPREADING_FACTORS = [7, 8, 9, 10, 11, 12];
 // TX power → TX current [mA] per product, measured calibration points (14–22 dBm)
 const LORA_TX_CURRENT_MA = {
     compact:       { 14: 32, 15:  44, 16:  67, 17:  78, 18:  87, 19: 100, 20: 123, 21: 124, 22: 124 },
+    // Compact XL = compact + extra batteries: same RF front-end, own table so it can be tuned separately
+    compact_xl:    { 14: 32, 15:  44, 16:  67, 17:  78, 18:  87, 19: 100, 20: 123, 21: 124, 22: 124 },
+    // Smart Badge: same values as compact for now, own table so it can be tuned separately
+    smart_badge:   { 14: 32, 15:  44, 16:  67, 17:  78, 18:  87, 19: 100, 20: 123, 21: 124, 22: 124 },
     combo_tracker: { 14: 27, 15:  34, 16:  59, 17:  66, 18:  73, 19:  82, 20:  92, 21:  94, 22:  99 },
 };
-// industrial / micro / smart_badge → same RF front-end as compact
+// industrial / micro → same RF front-end as compact (fallback in getTxCurrentMa)
 
 // Uplink DR → modulation per LoRaWAN region (LoRaWAN Regional Parameters RP002).
 //   { sf, bw }  : LoRa, spreading factor + bandwidth [kHz]
@@ -136,60 +140,46 @@ function loraDrLabel(dr, region) {
     return m.bw === 125 ? `DR${dr}(SF${m.sf})` : `DR${dr}(SF${m.sf}/${m.bw}kHz)`;
 }
 
+// Battery chemistries.
+//   primary      : self-discharge given per YEAR by the deployment environment (UI preset)
+//   rechargeable : self-discharge given per MONTH (Li-Po, default 2 %/month)
 const BATTERY_TYPES = {
-    primary:      {
-        descr: 'Primary (LTC)',
-        leakage_per_month: 0.003,
-        practical_capacity_multiplier: 0.80
-    },
-    rechargeable: {
-        descr: 'Rechargeable (Li-Po)',
-        leakage_per_month: 0.05,
-        practical_capacity_multiplier: 0.90
-    },
+    primary:      { descr: 'Primary (LTC)',         discharge_basis: 'annual'  },
+    rechargeable: { descr: 'Rechargeable (Li-Po)',  discharge_basis: 'monthly', default_monthly_discharge_pct: 2 },
 };
 
+// Per-product defaults used by the UI (battery capacity, usable %, LoRa-only).
+// lora_only: LoRa is the only network → network selection / cellular sections hidden.
 const PRODUCTS = {
-    industrial: {
-        descr: 'Industrial Tracker',
-        battery: {
-            nominal_capacity:   19000,
-            practical_capacity: 19000 * BATTERY_TYPES.primary.practical_capacity_multiplier,
-            leakage_per_month:  BATTERY_TYPES.primary.leakage_per_month,
-        }
-    },
     compact: {
         descr: 'Compact Tracker',
-        battery: {
-            nominal_capacity:   8000,
-            practical_capacity: 8000 * BATTERY_TYPES.primary.practical_capacity_multiplier,
-            leakage_per_month:  BATTERY_TYPES.primary.leakage_per_month,
-        }
+        lora_only: true,
+        battery: { type: 'primary',      nominal_capacity:  8000, usable_pct: 80 },
     },
-    micro: {
-        descr: 'Microtracker',
-        battery: {
-            nominal_capacity:   450,
-            practical_capacity: 450 * BATTERY_TYPES.rechargeable.practical_capacity_multiplier,
-            leakage_per_month:  BATTERY_TYPES.rechargeable.leakage_per_month,
-        }
-    },
-    smart_badge: {
-        descr: 'Smart Badge',
-        battery: {
-            nominal_capacity:   1300,
-            practical_capacity: 1300 * BATTERY_TYPES.rechargeable.practical_capacity_multiplier,
-            leakage_per_month:  BATTERY_TYPES.rechargeable.leakage_per_month,
-        }
+    compact_xl: {
+        descr: 'Compact XL Tracker',
+        lora_only: true,
+        battery: { type: 'primary',      nominal_capacity: 38000, usable_pct: 90 },
     },
     combo_tracker: {
         descr: 'Combo Tracker',
         cellular: true,
-        battery: {
-            nominal_capacity:   5000,
-            practical_capacity: 5000 * BATTERY_TYPES.primary.practical_capacity_multiplier,
-            leakage_per_month:  BATTERY_TYPES.primary.leakage_per_month,
-        }
+        battery: { type: 'primary',      nominal_capacity:  8000, usable_pct: 80 },
+    },
+    smart_badge: {
+        descr: 'Smart Badge',
+        lora_only: true,
+        battery: { type: 'rechargeable', nominal_capacity:  1300, usable_pct: 90 },
+    },
+    // Not selectable in the UI
+    industrial: {
+        descr: 'Industrial Tracker',
+        battery: { type: 'primary',      nominal_capacity: 19000, usable_pct: 80 },
+    },
+    micro: {
+        descr: 'Microtracker',
+        lora_only: true,
+        battery: { type: 'rechargeable', nominal_capacity:   450, usable_pct: 90 },
     },
 };
 
@@ -213,7 +203,7 @@ const BLE_OPERATIONS = {
 };
 
 // Linear interpolation between adjacent 1-dBm calibration points (14–22 dBm).
-// product: 'combo_tracker' uses combo table; all others use compact table.
+// product: own table if present (compact, compact_xl, smart_badge, combo_tracker), else the compact table.
 function getTxCurrentMa(dbm, product) {
     const table = LORA_TX_CURRENT_MA[product] ?? LORA_TX_CURRENT_MA.compact;
     const clamped = Math.max(14, Math.min(22, dbm));
@@ -425,7 +415,7 @@ const CONFIG_PARAM_ID_TO_NAME = {
 
 /**
  * Default AT3 device configuration (name format), loaded by the
- * "Load default configuration" button for quick testing of the tool.
+ * "Default Factory Configuration" button for quick testing of the tool.
  * Same content as AT3_name_based_config.txt.
  */
 const DEFAULT_DEVICE_CONFIG_TEXT = `
@@ -743,6 +733,14 @@ function calculate_battery_leakage_current(battery_capacity_mah, annual_discharg
 }
 
 /**
+ * Same, for a monthly self-discharge rate (rechargeable Li-Po, e.g. Smart Badge).
+ * I_leak [mA] = C × M/100 / (365 × 24 / 12)      e.g. 1300 mAh × 2 % = 26 mAh/month → ≈ 35.6 µA
+ */
+function calculate_battery_leakage_current_monthly(battery_capacity_mah, monthly_discharge_pct) {
+    return battery_capacity_mah * (monthly_discharge_pct / 100) / (365 * 24 / 12);
+}
+
+/**
  * Cellular communication current.
  * Each session = TX overhead (connection) + RX data exchange.
  */
@@ -991,10 +989,11 @@ function calculate_battery_life_time(input) {
     const recovery_beacon_current = recovery_beacon_motion_current + recovery_beacon_static_current;
 
     // Battery self-discharge: applied on the full (total) capacity, not the usable fraction.
-    const battery_leakage_current = calculate_battery_leakage_current(
-        input.battery_capacity_mah,
-        input.annual_discharge_pct
-    );
+    // Rechargeable (Smart Badge): monthly rate, the annual rate does not apply.
+    const monthly_discharge = input.monthly_discharge_pct !== undefined && input.monthly_discharge_pct !== null;
+    const battery_leakage_current = monthly_discharge
+        ? calculate_battery_leakage_current_monthly(input.battery_capacity_mah, input.monthly_discharge_pct)
+        : calculate_battery_leakage_current(input.battery_capacity_mah, input.annual_discharge_pct);
     const fix_current = HW.quiescent_current_ma + battery_leakage_current;
 
     // LoRa link-check (probe): fixed energy per event, no TX2
@@ -1099,8 +1098,14 @@ function calculate_battery_life_time(input) {
             total_capacity_mah:   input.battery_capacity_mah,
             capacity_mah:         usable_mah,
             usable_pct:           input.usable_pct ?? 100,
-            annual_discharge_pct: input.annual_discharge_pct,
-            annual_discharge_mah: Math.round(input.battery_capacity_mah * input.annual_discharge_pct / 100 * 10) / 10,
+            // 'monthly' (Smart Badge) → monthly_* fields; 'annual' (all others) → annual_* fields
+            discharge_basis:      monthly_discharge ? 'monthly' : 'annual',
+            annual_discharge_pct: monthly_discharge ? null : input.annual_discharge_pct,
+            annual_discharge_mah: monthly_discharge ? null
+                : Math.round(input.battery_capacity_mah * input.annual_discharge_pct / 100 * 10) / 10,
+            monthly_discharge_pct: monthly_discharge ? input.monthly_discharge_pct : null,
+            monthly_discharge_mah: monthly_discharge
+                ? Math.round(input.battery_capacity_mah * input.monthly_discharge_pct / 100 * 10) / 10 : null,
             leakage_current_ua:   Math.round(battery_leakage_current * 1000 * 10) / 10,
         }
     };
