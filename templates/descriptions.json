@@ -1,0 +1,10 @@
+{
+    "AT3_MotionTracking_MotionEvent.txt": {
+        "name": "Motion Tracking",
+        "description": "Motion Tracking: Periodic position reporting while moving, with start/stop motion notifications"
+    },
+    "AT3_MotionStartStop_MotionEvent.txt": {
+        "name": "Start&End",
+        "description": "Start&End: Reports the tracker’s position at motion start and motion end events plus notifications."
+    }
+}
