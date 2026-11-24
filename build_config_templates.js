@@ -6,9 +6,9 @@
  * This script embeds every template file into config_templates.js, which
  * the page loads to fill the "Load a template" list.
  *
- * Display names and descriptions come from templates/descriptions.json (keyed by file name).
+ * Display names and descriptions are set in TEMPLATE_INFO below.
  *
- * Run it again every time a template or description is added, changed or removed:
+ * Run it again every time a template, name or description is added, changed or removed:
  *     node build_config_templates.js
  */
 const fs   = require('fs');
@@ -21,17 +21,23 @@ const files = fs.readdirSync(TEMPLATES_DIR)
     .filter(f => /\.(txt|cfg)$/i.test(f))
     .sort((a, b) => a.localeCompare(b));
 
-// Optional display name and one-line description per template file
-// (name = button label, description = text shown under the button)
-const DESCRIPTIONS_FILE = path.join(TEMPLATES_DIR, 'descriptions.json');
-const descriptions = fs.existsSync(DESCRIPTIONS_FILE)
-    ? JSON.parse(fs.readFileSync(DESCRIPTIONS_FILE, 'utf8'))
-    : {};
+// Display name (button label) and description (text under the button) per template file.
+// A template not listed here shows its file name and no description.
+const TEMPLATE_INFO = {
+    'AT3_MotionTracking_MotionEvent.txt': {
+        name:        'Motion Tracking',
+        description: 'Periodic position reporting while moving, with start/stop motion notifications',
+    },
+    'AT3_MotionStartStop_MotionEvent.txt': {
+        name:        'Start&End',
+        description: 'Reports the tracker’s position at motion start and motion end events plus notifications.',
+    },
+};
 
 const templates = files.map(file => ({
-    name: (descriptions[file] && descriptions[file].name) || path.parse(file).name,  // default: file name without extension
+    name: (TEMPLATE_INFO[file] && TEMPLATE_INFO[file].name) || path.parse(file).name,  // default: file name without extension
     file,
-    description: (descriptions[file] && descriptions[file].description) || '',
+    description: (TEMPLATE_INFO[file] && TEMPLATE_INFO[file].description) || '',
     text: fs.readFileSync(path.join(TEMPLATES_DIR, file), 'utf8').replace(/\r\n/g, '\n'),
 }));
 
