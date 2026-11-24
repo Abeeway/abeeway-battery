@@ -6,7 +6,9 @@
  * This script embeds every template file into config_templates.js, which
  * the page loads to fill the "Load a template" list.
  *
- * Run it again every time a template is added, changed or removed:
+ * Display names and descriptions come from templates/descriptions.json (keyed by file name).
+ *
+ * Run it again every time a template or description is added, changed or removed:
  *     node build_config_templates.js
  */
 const fs   = require('fs');
@@ -19,9 +21,17 @@ const files = fs.readdirSync(TEMPLATES_DIR)
     .filter(f => /\.(txt|cfg)$/i.test(f))
     .sort((a, b) => a.localeCompare(b));
 
+// Optional display name and one-line description per template file
+// (name = button label, description = text shown under the button)
+const DESCRIPTIONS_FILE = path.join(TEMPLATES_DIR, 'descriptions.json');
+const descriptions = fs.existsSync(DESCRIPTIONS_FILE)
+    ? JSON.parse(fs.readFileSync(DESCRIPTIONS_FILE, 'utf8'))
+    : {};
+
 const templates = files.map(file => ({
-    name: path.parse(file).name,    // file name without extension
+    name: (descriptions[file] && descriptions[file].name) || path.parse(file).name,  // default: file name without extension
     file,
+    description: (descriptions[file] && descriptions[file].description) || '',
     text: fs.readFileSync(path.join(TEMPLATES_DIR, file), 'utf8').replace(/\r\n/g, '\n'),
 }));
 
